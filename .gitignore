@@ -1,0 +1,30 @@
+*.log
+.DS_Store
+.env
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+/.codex
+/.cursor/
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+/auth.json
+/node_modules
+# NOTE: /public/build is deliberately NOT ignored. Hostinger has no Node, so the
+# compiled Vite assets must be committed or the site 500s with a missing manifest.
+# See DEPLOY_GIT.md.
+/public/fonts-manifest.dev.json
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+/mytool
+_ide_helper.php
+Homestead.json
+Homestead.yaml
+Thumbs.db

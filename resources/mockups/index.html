@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OmniFlow - Multi-Channel Social Inbox & Growth CRM</title>
+  
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            whatsapp: '#25D366',
+            instagram: '#E1306C',
+            messenger: '#0084FF'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Vue 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <!-- Custom Styles for Scrollbars and Chat bubble alignment -->
+  <style>
+    /* Custom subtle scrollbars */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    [v-cloak] { display: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased overflow-x-hidden min-h-screen">
+  <div id="app" v-cloak class="flex flex-col h-screen overflow-hidden">
+
+    <!-- Top Platform Header -->
+    <header class="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between z-20 shrink-0 shadow-sm">
+      <!-- Brand & Channel Connectivity -->
+      <div class="flex items-center gap-4 sm:gap-6">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+            <i class="fa-solid fa-bolt-lightning text-lg"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-extrabold text-lg tracking-tight text-slate-900">OmniFlow</span>
+              <span class="bg-brand-50 text-brand-600 text-[10px] font-bold px-1.5 py-0.5 rounded border border-brand-100">PRO</span>
+            </div>
+            <p class="text-[11px] text-slate-400 font-medium hidden sm:block">Unified Social CRM & Inbound Campaigns</p>
+          </div>
+        </div>
+
+        <!-- Channel Connectivity Badges -->
+        <div class="hidden lg:flex items-center gap-2 pl-4 border-l border-slate-200">
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <i class="fa-brands fa-whatsapp text-emerald-600"></i>
+            <span>WhatsApp Cloud</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          </div>
+
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">
+            <i class="fa-brands fa-instagram text-rose-600"></i>
+            <span>Instagram DM</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+          </div>
+
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+            <i class="fa-brands fa-facebook-messenger text-blue-600"></i>
+            <span>Messenger</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Header Actions: Quota & Agent Profile -->
+      <div class="flex items-center gap-3 sm:gap-4">
+        <!-- Monthly Active Lead Quota -->
+        <div class="hidden md:flex flex-col items-end pr-3 border-r border-slate-200">
+          <div class="flex items-center gap-1.5 text-xs text-slate-600">
+            <span class="font-medium text-slate-900">1,420</span> / 2,500 Active Leads
+            <span class="text-brand-600 font-bold">(57%)</span>
+          </div>
+          <div class="w-36 h-1.5 bg-slate-100 rounded-full overflow-hidden mt-1">
+            <div class="h-full bg-brand-600 rounded-full" style="width: 57%"></div>
+          </div>
+        </div>
+
+        <button @click="currentTab = 'billing'" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-lg transition border border-brand-200">
+          <i class="fa-solid fa-sparkles text-brand-600"></i>
+          <span>Upgrade Plan</span>
+        </button>
+
+        <!-- Agent Status -->
+        <div class="flex items-center gap-2.5 pl-1">
+          <div class="relative">
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="w-9 h-9 rounded-full object-cover border border-slate-200">
+            <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white ring-1 ring-slate-100"></span>
+          </div>
+          <div class="hidden xl:block text-left text-xs">
+            <div class="font-semibold text-slate-800 leading-tight">Pooja Sharma</div>
+            <div class="text-slate-400 text-[11px]">Senior Growth Agent</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tab Navigation Strip -->
+    <nav class="bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between shrink-0">
+      <div class="flex items-center space-x-1 sm:space-x-6 overflow-x-auto py-1">
+        <button 
+          @click="currentTab = 'inbox'"
+          :class="currentTab === 'inbox' ? 'border-brand-600 text-brand-600 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-700 font-medium'"
+          class="flex items-center gap-2 py-3 px-2 border-b-2 text-sm transition whitespace-nowrap">
+          <i class="fa-regular fa-comment-dots text-base"></i>
+          <span>Unified Inbox</span>
+          <span class="bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.2 rounded-full">{{ unreadCount }}</span>
+        </button>
+
+        <button 
+          @click="currentTab = 'crm'"
+          :class="currentTab === 'crm' ? 'border-brand-600 text-brand-600 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-700 font-medium'"
+          class="flex items-center gap-2 py-3 px-2 border-b-2 text-sm transition whitespace-nowrap">
+          <i class="fa-solid fa-users text-base"></i>
+          <span>Lead CRM & Contacts</span>
+          <span class="bg-slate-100 text-slate-600 text-[11px] font-semibold px-2 py-0.5 rounded-full">1,420</span>
+        </button>
+
+        <button 
+          @click="currentTab = 'campaigns'"
+          :class="currentTab === 'campaigns' ? 'border-brand-600 text-brand-600 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-700 font-medium'"
+          class="flex items-center gap-2 py-3 px-2 border-b-2 text-sm transition whitespace-nowrap">
+          <i class="fa-solid fa-paper-plane text-base"></i>
+          <span>Campaigns & Automations</span>
+          <span class="bg-emerald-100 text-emerald-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">3 Active</span>
+        </button>
+
+        <button 
+          @click="currentTab = 'billing'"
+          :class="currentTab === 'billing' ? 'border-brand-600 text-brand-600 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-700 font-medium'"
+          class="flex items-center gap-2 py-3 px-2 border-b-2 text-sm transition whitespace-nowrap">
+          <i class="fa-solid fa-credit-card text-base"></i>
+          <span>Billing & Usage</span>
+        </button>
+      </div>
+
+      <!-- Quick Live Simulation Action -->
+      <div class="hidden sm:flex items-center">
+        <button 
+          @click="triggerSimulatedWebhook" 
+          :disabled="isSimulating"
+          class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white transition shadow-sm active:scale-95 disabled:opacity-50">
+          <i :class="isSimulating ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-satellite-dish'" class="text-indigo-400"></i>
+          <span>{{ isSimulating ? 'Receiving Webhook...' : 'Simulate Incoming Lead' }}</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Dynamic Workspace Viewports -->
+    <main class="flex-1 overflow-hidden relative flex flex-col">
+
+      <!-- VIEW 1: UNIFIED INBOX (3-COLUMN LAYOUT) -->
+      <div v-if="currentTab === 'inbox'" class="flex-1 flex overflow-hidden">
+        
+        <!-- INBOX COLUMN 1: Channel Filters & Conversation List -->
+        <div class="w-full sm:w-80 md:w-96 bg-white border-r border-slate-200 flex flex-col shrink-0 h-full">
+          <!-- Filter Tabs & Search Header -->
+          <div class="p-3.5 border-b border-slate-100 bg-white">
+            <div class="relative mb-3">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+              <input 
+                v-model="searchQuery" 
+                type="text" 
+                placeholder="Search phone, name, or handle..." 
+                class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+            </div>
+
+            <!-- Channel Pills Filter -->
+            <div class="flex items-center gap-1 text-xs">
+              <button 
+                @click="channelFilter = 'all'" 
+                :class="channelFilter === 'all' ? 'bg-slate-900 text-white font-medium' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                class="px-2.5 py-1 rounded-md transition text-[11px]">All</button>
+              
+              <button 
+                @click="channelFilter = 'whatsapp'" 
+                :class="channelFilter === 'whatsapp' ? 'bg-emerald-600 text-white font-medium' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                class="px-2 py-1 rounded-md transition text-[11px] flex items-center gap-1">
+                <i class="fa-brands fa-whatsapp"></i> WA
+              </button>
+
+              <button 
+                @click="channelFilter = 'instagram'" 
+                :class="channelFilter === 'instagram' ? 'bg-rose-600 text-white font-medium' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                class="px-2 py-1 rounded-md transition text-[11px] flex items-center gap-1">
+                <i class="fa-brands fa-instagram"></i> IG
+              </button>
+
+              <button 
+                @click="channelFilter = 'messenger'" 
+                :class="channelFilter === 'messenger' ? 'bg-blue-600 text-white font-medium' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                class="px-2 py-1 rounded-md transition text-[11px] flex items-center gap-1">
+                <i class="fa-brands fa-facebook-messenger"></i> FB
+              </button>
+            </div>
+
+            <!-- Status Filter -->
+            <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
+              <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Status</span>
+              <div class="flex items-center gap-3">
+                <button @click="statusFilter = 'all'" :class="statusFilter === 'all' ? 'text-brand-600 font-bold' : 'hover:text-slate-800'">All</button>
+                <button @click="statusFilter = 'open'" :class="statusFilter === 'open' ? 'text-brand-600 font-bold' : 'hover:text-slate-800'">Open ({{ openChatsCount }})</button>
+                <button @click="statusFilter = 'resolved'" :class="statusFilter === 'resolved' ? 'text-brand-600 font-bold' : 'hover:text-slate-800'">Resolved</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Conversation Threads List -->
+          <div class="flex-1 overflow-y-auto divide-y divide-slate-100">
+            <div 
+              v-for="chat in filteredConversations" 
+              :key="chat.id"
+              @click="selectChat(chat)"
+              :class="activeChat && activeChat.id === chat.id ? 'bg-indigo-50/70 border-l-4 border-brand-600' : 'hover:bg-slate-50 border-l-4 border-transparent'"
+              class="p-3.5 transition cursor-pointer flex items-start gap-3 relative">
+              
+              <!-- Avatar with Channel Badge -->
+              <div class="relative shrink-0 mt-0.5">
+                <img :src="chat.avatar" :alt="chat.name" class="w-10 h-10 rounded-full object-cover">
+                
+                <span 
+                  v-if="chat.channel === 'whatsapp'"
+                  class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-white text-[9px] flex items-center justify-center ring-2 ring-white">
+                  <i class="fa-brands fa-whatsapp"></i>
+                </span>
+                <span 
+                  v-else-if="chat.channel === 'instagram'"
+                  class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] flex items-center justify-center ring-2 ring-white">
+                  <i class="fa-brands fa-instagram"></i>
+                </span>
+                <span 
+                  v-else-if="chat.channel === 'messenger'"
+                  class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] flex items-center justify-center ring-2 ring-white">
+                  <i class="fa-brands fa-facebook-messenger"></i>
+                </span>
+              </div>
+
+              <!-- Content Summary -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-0.5">
+                  <h4 class="text-xs font-semibold text-slate-900 truncate">{{ chat.name }}</h4>
+                  <span class="text-[10px] text-slate-400 font-medium whitespace-nowrap">{{ chat.lastTime }}</span>
+                </div>
+                
+                <p class="text-xs text-slate-500 truncate" :class="chat.unread > 0 ? 'font-semibold text-slate-800' : ''">
+                  {{ chat.lastMessage }}
+                </p>
+
+                <!-- Tags & Meta -->
+                <div class="flex items-center gap-1.5 mt-2">
+                  <span 
+                    :class="{
+                      'bg-emerald-100 text-emerald-700': chat.stage === 'Hot Lead',
+                      'bg-amber-100 text-amber-800': chat.stage === 'Pricing Inquiry',
+                      'bg-indigo-100 text-indigo-700': chat.stage === 'Qualified',
+                      'bg-slate-100 text-slate-600': chat.stage === 'New Inquiry'
+                    }"
+                    class="text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                    {{ chat.stage }}
+                  </span>
+                  
+                  <span v-if="chat.tags && chat.tags[0]" class="text-[10px] text-slate-400 bg-slate-50 px-1 py-0.5 rounded border border-slate-100">
+                    {{ chat.tags[0] }}
+                  </span>
+
+                  <span v-if="chat.unread > 0" class="ml-auto w-4 h-4 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center">
+                    {{ chat.unread }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="filteredConversations.length === 0" class="p-8 text-center text-slate-400 text-xs">
+              <i class="fa-regular fa-folder-open text-2xl mb-2 text-slate-300"></i>
+              <p>No conversations found matching filters.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- INBOX COLUMN 2: Active Chat Thread -->
+        <div v-if="activeChat" class="flex-1 bg-slate-50/50 flex flex-col h-full overflow-hidden border-r border-slate-200">
+          <!-- Thread Header -->
+          <div class="h-16 px-4 sm:px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-3">
+              <div class="relative">
+                <img :src="activeChat.avatar" :alt="activeChat.name" class="w-9 h-9 rounded-full object-cover">
+                <span 
+                  :class="activeChat.channel === 'whatsapp' ? 'bg-emerald-500' : (activeChat.channel === 'instagram' ? 'bg-rose-500' : 'bg-blue-500')"
+                  class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full text-white text-[8px] flex items-center justify-center ring-2 ring-white">
+                  <i :class="activeChat.channel === 'whatsapp' ? 'fa-brands fa-whatsapp' : (activeChat.channel === 'instagram' ? 'fa-brands fa-instagram' : 'fa-brands fa-facebook-messenger')"></i>
+                </span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-bold text-sm text-slate-900">{{ activeChat.name }}</h3>
+                  <span class="text-xs text-slate-400">({{ activeChat.handle || activeChat.phone }})</span>
+                </div>
+                <div class="flex items-center gap-2 text-[11px] text-slate-400">
+                  <span class="flex items-center gap-1">
+                    <i class="fa-solid fa-clock text-[10px]"></i> 24h Meta Window: <strong class="text-emerald-600 font-semibold">Active (18h left)</strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Thread Quick Actions -->
+            <div class="flex items-center gap-2">
+              <button 
+                @click="toggleChatStatus" 
+                :class="activeChat.status === 'open' ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'"
+                class="px-2.5 py-1 text-xs rounded-lg font-medium transition flex items-center gap-1.5">
+                <i :class="activeChat.status === 'open' ? 'fa-regular fa-circle-check' : 'fa-solid fa-check-double text-emerald-600'"></i>
+                <span>{{ activeChat.status === 'open' ? 'Mark Resolved' : 'Reopen' }}</span>
+              </button>
+
+              <button @click="showMobileContactDrawer = !showMobileContactDrawer" class="lg:hidden p-2 text-slate-400 hover:text-slate-600 text-sm">
+                <i class="fa-solid fa-circle-info"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Chat History Scrollable Area -->
+          <div ref="chatContainer" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            <!-- Simulated 24-hr Policy Notice -->
+            <div class="text-center my-2">
+              <span class="bg-indigo-50 text-indigo-700 text-[11px] font-medium px-3 py-1 rounded-full border border-indigo-100">
+                <i class="fa-solid fa-lock text-[10px] mr-1"></i> End-to-end webhook sync via Laravel Reverb
+              </span>
+            </div>
+
+            <div 
+              v-for="(msg, index) in activeChat.messages" 
+              :key="index"
+              :class="msg.isInternal ? 'flex justify-center' : (msg.isOutgoing ? 'flex justify-end' : 'flex justify-start')">
+              
+              <!-- Internal Staff Note -->
+              <div v-if="msg.isInternal" class="max-w-md w-full bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 text-xs shadow-sm">
+                <div class="flex items-center justify-between mb-1 font-semibold text-[11px] text-amber-800">
+                  <span><i class="fa-solid fa-lock text-[10px] mr-1"></i> Internal Staff Note (Invisible to Lead)</span>
+                  <span>{{ msg.time }}</span>
+                </div>
+                <p>{{ msg.text }}</p>
+                <div class="mt-1 text-[10px] text-amber-600 font-medium">Author: {{ msg.author || 'Pooja Sharma' }}</div>
+              </div>
+
+              <!-- Outbound Agent Message -->
+              <div v-else-if="msg.isOutgoing" class="max-w-md flex flex-col items-end">
+                <div class="bg-brand-600 text-white px-4 py-2.5 rounded-2xl rounded-tr-none text-xs leading-relaxed shadow-sm">
+                  <p>{{ msg.text }}</p>
+                </div>
+                <div class="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400">
+                  <span>{{ msg.time }}</span>
+                  <i class="fa-solid fa-check-double text-indigo-500 text-[9px]"></i>
+                </div>
+              </div>
+
+              <!-- Inbound Customer Message -->
+              <div v-else class="max-w-md flex flex-col items-start">
+                <div class="bg-white border border-slate-200 text-slate-800 px-4 py-2.5 rounded-2xl rounded-tl-none text-xs leading-relaxed shadow-sm">
+                  <p>{{ msg.text }}</p>
+                </div>
+                <div class="flex items-center gap-1 mt-1 text-[10px] text-slate-400">
+                  <span>{{ msg.time }}</span>
+                  <span class="text-slate-300">•</span>
+                  <span class="capitalize">{{ activeChat.channel }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat Input Controls & Canned Responses -->
+          <div class="p-3 sm:p-4 bg-white border-t border-slate-200">
+            <!-- Mode Selector: Customer Reply vs Internal Note -->
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-1 p-0.5 bg-slate-100 rounded-lg text-xs">
+                <button 
+                  @click="inputMode = 'reply'" 
+                  :class="inputMode === 'reply' ? 'bg-white shadow-xs font-semibold text-slate-800' : 'text-slate-500 hover:text-slate-700'"
+                  class="px-2.5 py-1 rounded-md transition text-[11px] flex items-center gap-1.5">
+                  <i class="fa-solid fa-reply text-brand-600"></i> Reply to Contact
+                </button>
+
+                <button 
+                  @click="inputMode = 'note'" 
+                  :class="inputMode === 'note' ? 'bg-amber-100 text-amber-800 font-semibold' : 'text-slate-500 hover:text-slate-700'"
+                  class="px-2.5 py-1 rounded-md transition text-[11px] flex items-center gap-1.5">
+                  <i class="fa-solid fa-note-sticky text-amber-600"></i> Internal Note
+                </button>
+              </div>
+
+              <!-- Canned Quick Replies Dropdown Trigger -->
+              <div class="relative">
+                <button 
+                  @click="showCannedMenu = !showCannedMenu" 
+                  class="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
+                  <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+                  <span>Quick Templates</span>
+                  <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                </button>
+
+                <!-- Canned Popover -->
+                <div v-if="showCannedMenu" class="absolute right-0 bottom-8 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-30 text-xs">
+                  <div class="font-semibold text-slate-400 uppercase text-[10px] px-2 py-1">Saved Responses</div>
+                  <div 
+                    v-for="(template, idx) in cannedTemplates" 
+                    :key="idx" 
+                    @click="applyTemplate(template.text)"
+                    class="p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition">
+                    <div class="font-semibold text-slate-800">{{ template.title }}</div>
+                    <div class="text-[11px] text-slate-400 truncate">{{ template.text }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Input Box -->
+            <div class="flex items-end gap-2">
+              <div class="flex-1 relative rounded-xl border border-slate-300 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 bg-white">
+                <textarea 
+                  v-model="replyText" 
+                  @keydown.enter.prevent="sendMessage"
+                  rows="2" 
+                  :placeholder="inputMode === 'reply' ? 'Type message... (Press Enter to send)' : 'Write private team note...'"
+                  class="w-full px-3 py-2 text-xs rounded-xl focus:outline-none resize-none bg-transparent"></textarea>
+                
+                <div class="flex items-center justify-between px-3 pb-2 text-slate-400 text-xs">
+                  <div class="flex items-center gap-2">
+                    <button class="hover:text-slate-600"><i class="fa-regular fa-face-smile"></i></button>
+                    <button class="hover:text-slate-600"><i class="fa-solid fa-paperclip"></i></button>
+                    <button class="hover:text-slate-600"><i class="fa-regular fa-image"></i></button>
+                  </div>
+                  <span class="text-[10px] text-slate-400">Laravel Reverb WebSockets Live</span>
+                </div>
+              </div>
+
+              <button 
+                @click="sendMessage"
+                :class="inputMode === 'note' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-brand-600 hover:bg-brand-700'" 
+                class="w-10 h-10 rounded-xl text-white flex items-center justify-center shrink-0 shadow-sm transition active:scale-95">
+                <i class="fa-solid fa-paper-plane text-xs"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- INBOX COLUMN 3: Contact & Lead Details -->
+        <div 
+          v-if="activeChat" 
+          :class="showMobileContactDrawer ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'"
+          class="fixed inset-y-0 right-0 z-30 w-80 lg:static bg-white border-l border-slate-200 flex flex-col shrink-0 h-full transition-transform duration-200 ease-in-out">
+          
+          <!-- Column Header -->
+          <div class="h-16 px-5 border-b border-slate-200 flex items-center justify-between">
+            <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400">Lead Dossier & CRM</h4>
+            <button @click="showMobileContactDrawer = false" class="lg:hidden text-slate-400 hover:text-slate-600">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <!-- Contact Details Scrollable Area -->
+          <div class="flex-1 overflow-y-auto p-5 space-y-5">
+            <!-- Profile Card -->
+            <div class="text-center pb-4 border-b border-slate-100">
+              <img :src="activeChat.avatar" :alt="activeChat.name" class="w-16 h-16 rounded-full object-cover mx-auto mb-2 border-2 border-slate-100 shadow-sm">
+              <h3 class="font-bold text-sm text-slate-900">{{ activeChat.name }}</h3>
+              <p class="text-xs text-slate-500 mt-0.5">{{ activeChat.location || 'Mumbai, Maharashtra' }}</p>
+              
+              <!-- Quick Contact Badges -->
+              <div class="flex justify-center items-center gap-2 mt-3 text-xs">
+                <span class="px-2 py-1 bg-slate-100 text-slate-700 rounded-md font-mono text-[11px]">{{ activeChat.phone }}</span>
+                <span v-if="activeChat.handle" class="px-2 py-1 bg-rose-50 text-rose-700 rounded-md font-medium text-[11px]">{{ activeChat.handle }}</span>
+              </div>
+            </div>
+
+            <!-- Lead Status Selector -->
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Lead Pipeline Stage</label>
+              <select 
+                v-model="activeChat.stage" 
+                class="w-full bg-slate-50 border border-slate-200 text-xs font-semibold rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
+                <option value="New Inquiry">New Inquiry</option>
+                <option value="Pricing Inquiry">Pricing Inquiry</option>
+                <option value="Qualified">Qualified Prospect</option>
+                <option value="Hot Lead">Hot Lead (Ready to Buy)</option>
+                <option value="Won / Customer">Closed Won / Customer</option>
+              </select>
+            </div>
+
+            <!-- Tags -->
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Tags & Segments</label>
+              <div class="flex flex-wrap gap-1.5 mb-2">
+                <span 
+                  v-for="(tag, tIdx) in activeChat.tags" 
+                  :key="tIdx"
+                  class="bg-slate-100 text-slate-700 px-2 py-1 rounded-md text-[11px] font-medium flex items-center gap-1.5">
+                  #{{ tag }}
+                  <button @click="removeTag(tIdx)" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-[9px]"></i></button>
+                </span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <input 
+                  v-model="newTagInput" 
+                  @keydown.enter.prevent="addTag"
+                  type="text" 
+                  placeholder="Add custom tag..." 
+                  class="flex-1 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-500">
+                <button @click="addTag" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-semibold">+</button>
+              </div>
+            </div>
+
+            <!-- Action Button: Enroll in Campaign -->
+            <div class="pt-2">
+              <button 
+                @click="openEnrollModal(activeChat)"
+                class="w-full py-2 px-3 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 font-semibold rounded-lg text-xs transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-bullhorn text-brand-600"></i>
+                <span>Enroll in Campaign Blast</span>
+              </button>
+            </div>
+
+            <!-- Activity & Meta Data Log -->
+            <div class="pt-3 border-t border-slate-100">
+              <h5 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">OmniFlow Activity Log</h5>
+              <div class="space-y-2.5 text-xs">
+                <div class="flex items-start gap-2 text-slate-600">
+                  <i class="fa-solid fa-paper-plane text-emerald-500 mt-0.5 text-[10px]"></i>
+                  <div>
+                    <span class="font-medium text-slate-800">Triggered Comment-to-DM</span>
+                    <p class="text-[10px] text-slate-400">Post #FestiveOffer (Instagram)</p>
+                  </div>
+                </div>
+
+                <div class="flex items-start gap-2 text-slate-600">
+                  <i class="fa-solid fa-tag text-indigo-500 mt-0.5 text-[10px]"></i>
+                  <div>
+                    <span class="font-medium text-slate-800">Assigned Tag: #ecommerce-prospect</span>
+                    <p class="text-[10px] text-slate-400">Auto-classified via keyword rule</p>
+                  </div>
+                </div>
+
+                <div class="flex items-start gap-2 text-slate-600">
+                  <i class="fa-solid fa-user-check text-blue-500 mt-0.5 text-[10px]"></i>
+                  <div>
+                    <span class="font-medium text-slate-800">Assigned to Pooja Sharma</span>
+                    <p class="text-[10px] text-slate-400">Round-Robin Inbound Router</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: LEAD CRM & CONTACTS -->
+      <div v-if="currentTab === 'crm'" class="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50">
+        <div class="max-w-6xl mx-auto space-y-6">
+          
+          <!-- Section Header -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-900">Lead CRM & Unified Directory</h2>
+              <p class="text-xs text-slate-500 mt-1">Every contact captured automatically across Meta messaging channels.</p>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <button @click="exportCSV" class="px-3 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-lg transition shadow-xs flex items-center gap-2">
+                <i class="fa-solid fa-file-arrow-down text-slate-500"></i>
+                <span>Export CSV</span>
+              </button>
+              <button class="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg transition shadow-sm flex items-center gap-2">
+                <i class="fa-solid fa-user-plus text-xs"></i>
+                <span>Add Contact</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- CRM Table Card -->
+          <div class="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-white">
+              <div class="relative w-72">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                <input 
+                  type="text" 
+                  placeholder="Filter leads by name, phone, or tag..." 
+                  class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-brand-500">
+              </div>
+
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-500">Showing <strong>{{ leadsList.length }}</strong> active leads</span>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-600">
+                <thead class="bg-slate-50/75 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                  <tr>
+                    <th class="px-6 py-3.5">Contact</th>
+                    <th class="px-4 py-3.5">Source Channel</th>
+                    <th class="px-4 py-3.5">Pipeline Stage</th>
+                    <th class="px-4 py-3.5">Tags</th>
+                    <th class="px-4 py-3.5">Total DMs</th>
+                    <th class="px-4 py-3.5">Last Touch</th>
+                    <th class="px-6 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr v-for="lead in leadsList" :key="lead.id" class="hover:bg-slate-50/70 transition">
+                    <td class="px-6 py-3.5 font-medium text-slate-900 flex items-center gap-3">
+                      <img :src="lead.avatar" class="w-8 h-8 rounded-full object-cover">
+                      <div>
+                        <div class="font-bold text-slate-900">{{ lead.name }}</div>
+                        <div class="text-[11px] text-slate-400 font-mono">{{ lead.phone }}</div>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3.5">
+                      <span 
+                        :class="{
+                          'text-emerald-700 bg-emerald-50 border-emerald-200': lead.channel === 'whatsapp',
+                          'text-rose-700 bg-rose-50 border-rose-200': lead.channel === 'instagram',
+                          'text-blue-700 bg-blue-50 border-blue-200': lead.channel === 'messenger'
+                        }"
+                        class="px-2 py-0.5 rounded-full text-[11px] font-medium border inline-flex items-center gap-1.5 capitalize">
+                        <i :class="lead.channel === 'whatsapp' ? 'fa-brands fa-whatsapp' : (lead.channel === 'instagram' ? 'fa-brands fa-instagram' : 'fa-brands fa-facebook-messenger')"></i>
+                        {{ lead.channel }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3.5">
+                      <span 
+                        :class="{
+                          'bg-emerald-100 text-emerald-800': lead.stage === 'Hot Lead',
+                          'bg-amber-100 text-amber-800': lead.stage === 'Pricing Inquiry',
+                          'bg-indigo-100 text-indigo-800': lead.stage === 'Qualified',
+                          'bg-slate-100 text-slate-700': lead.stage === 'New Inquiry'
+                        }"
+                        class="px-2 py-0.5 rounded text-[11px] font-semibold">
+                        {{ lead.stage }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3.5">
+                      <div class="flex flex-wrap gap-1">
+                        <span v-for="tag in lead.tags" :key="tag" class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px]">
+                          #{{ tag }}
+                        </span>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3.5 font-medium text-slate-700">{{ lead.messagesCount }} msgs</td>
+                    <td class="px-4 py-3.5 text-slate-400 text-[11px]">{{ lead.lastTime }}</td>
+                    <td class="px-6 py-3.5 text-right">
+                      <button @click="openChatDirect(lead.id)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded text-[11px] transition">
+                        Open Chat
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 3: CAMPAIGNS & BROADCASTS -->
+      <div v-if="currentTab === 'campaigns'" class="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50">
+        <div class="max-w-6xl mx-auto space-y-6">
+          
+          <!-- Header -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-900">Campaigns & Inbound Growth Triggers</h2>
+              <p class="text-xs text-slate-500 mt-1">Run WhatsApp pre-approved broadcasts and automatic Instagram comment-to-DM funnels.</p>
+            </div>
+            <button 
+              @click="showCreateCampaignModal = true"
+              class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg transition shadow-sm flex items-center gap-2">
+              <i class="fa-solid fa-plus text-xs"></i>
+              <span>Create New Campaign</span>
+            </button>
+          </div>
+
+          <!-- Campaigns Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Broadcasts Sent</span>
+                <i class="fa-solid fa-paper-plane text-brand-600 text-sm"></i>
+              </div>
+              <div class="text-2xl font-black text-slate-900">14,890</div>
+              <div class="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+                <i class="fa-solid fa-arrow-trend-up"></i> +28% from last month
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Avg. DM Reply Rate</span>
+                <i class="fa-solid fa-comments text-emerald-600 text-sm"></i>
+              </div>
+              <div class="text-2xl font-black text-slate-900">42.8%</div>
+              <div class="text-[11px] text-slate-400 mt-1">Industry benchmark: 15-20%</div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Captured Leads</span>
+                <i class="fa-solid fa-user-check text-indigo-600 text-sm"></i>
+              </div>
+              <div class="text-2xl font-black text-slate-900">1,420</div>
+              <div class="text-[11px] text-emerald-600 font-semibold mt-1">₹3.51 cost per acquisition</div>
+            </div>
+          </div>
+
+          <!-- Active Campaigns Table -->
+          <div class="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 class="font-bold text-sm text-slate-800">Active Automations & Sequences</h3>
+              <span class="text-xs text-slate-400">All triggers running via Laravel Queues</span>
+            </div>
+
+            <div class="divide-y divide-slate-100">
+              <div v-for="camp in campaignsList" :key="camp.id" class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/60 transition">
+                <div class="flex items-start gap-3.5">
+                  <div 
+                    :class="camp.type === 'WhatsApp Broadcast' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'"
+                    class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0">
+                    <i :class="camp.type === 'WhatsApp Broadcast' ? 'fa-brands fa-whatsapp text-lg' : 'fa-brands fa-instagram text-lg'"></i>
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <h4 class="font-bold text-sm text-slate-900">{{ camp.name }}</h4>
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wide">Live</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">{{ camp.description }}</p>
+                    <div class="flex items-center gap-3 mt-2 text-[11px] text-slate-400 font-medium">
+                      <span>Trigger: <strong class="text-slate-700">{{ camp.trigger }}</strong></span>
+                      <span>•</span>
+                      <span>Target: <strong class="text-slate-700">{{ camp.target }}</strong></span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="flex items-center gap-6 text-xs shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                  <div>
+                    <div class="text-[10px] uppercase text-slate-400 font-bold">Delivered</div>
+                    <div class="text-sm font-bold text-slate-800">{{ camp.delivered }}</div>
+                  </div>
+                  <div>
+                    <div class="text-[10px] uppercase text-slate-400 font-bold">Responses</div>
+                    <div class="text-sm font-bold text-slate-800">{{ camp.replied }} <span class="text-emerald-600 font-normal">({{ camp.replyRate }})</span></div>
+                  </div>
+                  <div>
+                    <div class="text-[10px] uppercase text-slate-400 font-bold">Leads Won</div>
+                    <div class="text-sm font-bold text-brand-600">{{ camp.leadsWon }}</div>
+                  </div>
+                  <button class="p-2 text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 4: BILLING & USAGE -->
+      <div v-if="currentTab === 'billing'" class="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50">
+        <div class="max-w-4xl mx-auto space-y-6">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">Subscription & WhatsApp Wallet</h2>
+            <p class="text-xs text-slate-500 mt-1">Manage your plan limits, active lead quotas, and WhatsApp template messaging credits.</p>
+          </div>
+
+          <!-- Subscription Plan Card -->
+          <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-xs relative overflow-hidden">
+            <div class="absolute -right-6 -top-6 w-28 h-28 bg-brand-50 rounded-full pointer-events-none"></div>
+            
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div>
+                <span class="px-2.5 py-1 bg-brand-50 text-brand-700 border border-brand-200 text-xs font-bold rounded-lg uppercase tracking-wider">Active Subscription</span>
+                <h3 class="text-2xl font-extrabold text-slate-900 mt-2">Growth Plan</h3>
+                <p class="text-xs text-slate-500">Billed monthly via Razorpay Subscriptions (Renews Oct 12, 2026)</p>
+              </div>
+              <div class="text-right">
+                <div class="text-3xl font-black text-slate-900">₹4,999<span class="text-sm font-medium text-slate-400">/month</span></div>
+                <div class="text-xs text-slate-400">Excl. 18% GST</div>
+              </div>
+            </div>
+
+            <!-- Usage Limits Bar -->
+            <div class="space-y-4 pt-4 border-t border-slate-100">
+              <div>
+                <div class="flex justify-between text-xs font-semibold mb-1.5">
+                  <span class="text-slate-700">Monthly Active Leads (MAC Quota)</span>
+                  <span class="text-slate-900">1,420 of 2,500 leads used (56.8%)</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-full bg-brand-600 rounded-full" style="width: 56.8%"></div>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">Overage rule: ₹1,500 per additional block of 500 active contacts.</p>
+              </div>
+
+              <!-- Multi-Channel Add-ons -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <div class="text-[11px] font-medium text-slate-500">Instagram Accounts</div>
+                  <div class="text-sm font-bold text-slate-800">3 of 5 Connected</div>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <div class="text-[11px] font-medium text-slate-500">Team Agent Seats</div>
+                  <div class="text-sm font-bold text-slate-800">4 of 5 Seats In Use</div>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <div class="text-[11px] font-medium text-slate-500">Webhook Workers</div>
+                  <div class="text-sm font-bold text-emerald-600">High Priority (Reverb)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- WhatsApp Wallet Credits Card -->
+          <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                    <i class="fa-brands fa-whatsapp text-sm"></i>
+                  </div>
+                  <h3 class="font-bold text-base text-slate-900">WhatsApp Broadcast Balance</h3>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Official Meta template fees (~₹0.88/marketing conversation) are deducted automatically from this prepaid balance.</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="text-right">
+                  <div class="text-xl font-extrabold text-slate-900">₹{{ walletBalance.toLocaleString('en-IN') }}</div>
+                  <span class="text-[11px] text-emerald-600 font-semibold">Ready to send ~{{ Math.floor(walletBalance / 0.88) }} messages</span>
+                </div>
+                <button 
+                  @click="showAddCreditModal = true"
+                  class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg transition shadow-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-plus text-xs"></i>
+                  <span>Add Balance</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- MODAL 1: CREATE NEW CAMPAIGN -->
+    <div v-if="showCreateCampaignModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-bullhorn text-brand-600"></i>
+            <h3 class="font-bold text-sm text-slate-900">Create Social Campaign Automation</h3>
+          </div>
+          <button @click="showCreateCampaignModal = false" class="text-slate-400 hover:text-slate-600">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Campaign Title</label>
+            <input v-model="newCampaign.name" type="text" placeholder="e.g., Diwali Flash Sale DM Funnel" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Channel & Funnel Type</label>
+            <select v-model="newCampaign.type" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs">
+              <option value="Instagram Comment-to-DM">Instagram: Auto DM on Post Comment keyword</option>
+              <option value="WhatsApp Broadcast">WhatsApp Cloud: Pre-approved Template Broadcast</option>
+              <option value="Messenger Lead Bot">Facebook Messenger: Ad Click-to-Message Welcome</option>
+            </select>
+          </div>
+
+          <div v-if="newCampaign.type === 'Instagram Comment-to-DM'">
+            <label class="block font-semibold text-slate-700 mb-1">Trigger Keywords (Comma-separated)</label>
+            <input v-model="newCampaign.trigger" type="text" placeholder="PRICE, LINK, BUY, CODE" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs">
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Message Content / Template</label>
+            <textarea v-model="newCampaign.template" rows="3" placeholder="Hey {{name}}, thanks for showing interest! Here is your exclusive 20% link: ..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs resize-none"></textarea>
+          </div>
+
+          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 text-[11px] text-slate-500">
+            <i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>
+            Compliance Guard: Automatically respects Meta's official 24-hour service window guidelines.
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button @click="showCreateCampaignModal = false" class="px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+          <button @click="saveCampaign" class="px-4 py-2 text-xs font-semibold bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition">Launch Campaign</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 2: ADD CREDITS -->
+    <div v-if="showAddCreditModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 class="font-bold text-sm text-slate-900">Top-Up WhatsApp Credits</h3>
+          <button @click="showAddCreditModal = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p class="text-xs text-slate-500">Select amount to top up your prepaid broadcast wallet via Razorpay / UPI:</p>
+        
+        <div class="grid grid-cols-3 gap-2">
+          <button @click="rechargeAmount = 1000" :class="rechargeAmount === 1000 ? 'border-brand-600 bg-brand-50 text-brand-700 font-bold' : 'border-slate-200'" class="p-2 text-xs border rounded-lg">₹1,000</button>
+          <button @click="rechargeAmount = 2500" :class="rechargeAmount === 2500 ? 'border-brand-600 bg-brand-50 text-brand-700 font-bold' : 'border-slate-200'" class="p-2 text-xs border rounded-lg">₹2,500</button>
+          <button @click="rechargeAmount = 5000" :class="rechargeAmount === 5000 ? 'border-brand-600 bg-brand-50 text-brand-700 font-bold' : 'border-slate-200'" class="p-2 text-xs border rounded-lg">₹5,000</button>
+        </div>
+
+        <button @click="confirmRecharge" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg transition">
+          Pay ₹{{ rechargeAmount.toLocaleString('en-IN') }} with UPI / Card
+        </button>
+      </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div 
+      v-if="toast.visible" 
+      class="fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2.5 text-xs font-semibold text-white transition-all transform duration-300"
+      :class="toast.type === 'success' ? 'bg-slate-900' : 'bg-emerald-600'">
+      <i :class="toast.icon"></i>
+      <span>{{ toast.message }}</span>
+    </div>
+
+  </div>
+
+  <script>
+    const { createApp, ref, computed, nextTick } = Vue;
+
+    createApp({
+      setup() {
+        // Main Navigation Tab
+        const currentTab = ref('inbox');
+        const channelFilter = ref('all');
+        const statusFilter = ref('all');
+        const searchQuery = ref('');
+        const inputMode = ref('reply'); // 'reply' or 'note'
+        const replyText = ref('');
+        const showCannedMenu = ref(false);
+        const newTagInput = ref('');
+        const showMobileContactDrawer = ref(false);
+        const isSimulating = ref(false);
+        const chatContainer = ref(null);
+
+        // Modals & Wallet
+        const showCreateCampaignModal = ref(false);
+        const showAddCreditModal = ref(false);
+        const walletBalance = ref(2450);
+        const rechargeAmount = ref(2500);
+
+        // Toast Helper
+        const toast = ref({
+          visible: false,
+          message: '',
+          type: 'success',
+          icon: 'fa-solid fa-check'
+        });
+
+        const showToast = (message, type = 'success', icon = 'fa-solid fa-check') => {
+          toast.value = { visible: true, message, type, icon };
+          setTimeout(() => {
+            toast.value.visible = false;
+          }, 3500);
+        };
+
+        // Realistic Pre-seeded Conversation Threads
+        const conversations = ref([
+          {
+            id: 'c1',
+            name: 'Ananya Roy',
+            phone: '+91 98201 44821',
+            handle: '@ananya_lifestyle',
+            channel: 'instagram',
+            status: 'open',
+            avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
+            location: 'Bengaluru, KA',
+            stage: 'Hot Lead',
+            tags: ['ecommerce-prospect', 'festive-sale'],
+            unread: 1,
+            lastTime: '10:42 AM',
+            lastMessage: 'Can you confirm if delivery to Bengaluru is free on prepaid orders?',
+            messages: [
+              { isOutgoing: false, text: 'Hi! Saw your reel on the linen festive kurta set.', time: '10:35 AM' },
+              { isOutgoing: true, text: 'Hey Ananya! Glad you loved the design. It is handwoven pure organic linen.', time: '10:38 AM' },
+              { isInternal: true, text: 'High intent: User already added size M to cart on website via pixel match.', time: '10:39 AM', author: 'OmniFlow Bot' },
+              { isOutgoing: false, text: 'Can you confirm if delivery to Bengaluru is free on prepaid orders?', time: '10:42 AM' }
+            ]
+          },
+          {
+            id: 'c2',
+            name: 'Vikram Malhotra',
+            phone: '+91 98112 09432',
+            handle: '',
+            channel: 'whatsapp',
+            status: 'open',
+            avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+            location: 'New Delhi, DL',
+            stage: 'Pricing Inquiry',
+            tags: ['agency-bulk', 'b2b-quote'],
+            unread: 0,
+            lastTime: '09:15 AM',
+            lastMessage: 'Thanks, sharing this invoice quote with our finance team now.',
+            messages: [
+              { isOutgoing: false, text: 'We need 50 units for our corporate team gifting before Diwali.', time: '09:00 AM' },
+              { isOutgoing: true, text: 'We offer a tiered 25% discount on bulk corporate gifting of 50+ units.', time: '09:10 AM' },
+              { isOutgoing: false, text: 'Thanks, sharing this invoice quote with our finance team now.', time: '09:15 AM' }
+            ]
+          },
+          {
+            id: 'c3',
+            name: 'Rohit Kulkarni',
+            phone: '+91 97654 11209',
+            handle: '@rohit_kool',
+            channel: 'instagram',
+            status: 'resolved',
+            avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80',
+            location: 'Pune, MH',
+            stage: 'Won / Customer',
+            tags: ['repeat-buyer'],
+            unread: 0,
+            lastTime: 'Yesterday',
+            lastMessage: 'Got the tracking number on WhatsApp. Appreciate the quick response!',
+            messages: [
+              { isOutgoing: false, text: 'Where can I find the tracking number for order #OF-8491?', time: 'Yesterday' },
+              { isOutgoing: true, text: 'Here is your BlueDart AWB: 4091823901. It is out for delivery today!', time: 'Yesterday' },
+              { isOutgoing: false, text: 'Got the tracking number on WhatsApp. Appreciate the quick response!', time: 'Yesterday' }
+            ]
+          },
+          {
+            id: 'c4',
+            name: 'Meera Nambiar',
+            phone: '+91 99401 55672',
+            handle: 'fb/meera.nambiar',
+            channel: 'messenger',
+            status: 'open',
+            avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80',
+            location: 'Kochi, KL',
+            stage: 'Qualified',
+            tags: ['facebook-ad-lead'],
+            unread: 2,
+            lastTime: '2 hrs ago',
+            lastMessage: 'Does the starter bundle come with a 30-day money-back guarantee?',
+            messages: [
+              { isOutgoing: false, text: 'Saw your ad about the home barista grinder.', time: '3 hrs ago' },
+              { isOutgoing: false, text: 'Does the starter bundle come with a 30-day money-back guarantee?', time: '2 hrs ago' }
+            ]
+          }
+        ]);
+
+        const activeChat = ref(conversations.value[0]);
+
+        // Canned Response Templates
+        const cannedTemplates = ref([
+          { title: 'Free Shipping Policy', text: 'Yes, all orders above ₹999 qualify for free express courier across India!' },
+          { title: 'Diwali 15% Off Coupon', text: 'Use code DIWALI15 at checkout to get an instant 15% discount on your order.' },
+          { title: 'Schedule Brand Demo Call', text: 'You can book a 10-minute live demo call with our product specialist here: omniflow.in/demo' }
+        ]);
+
+        // Campaigns List
+        const campaignsList = ref([
+          {
+            id: 1,
+            name: 'Festive IG Comment-to-DM Auto-Pilot',
+            type: 'Instagram Comment-to-DM',
+            trigger: 'Comment contains "PRICE" or "OFFER"',
+            target: 'All Instagram Reels & Feed Posts',
+            delivered: '6,420',
+            replied: '3,110',
+            replyRate: '48.4%',
+            leadsWon: '412',
+            description: 'Instantly fires a DM with product checkout link when user leaves a comment on festive video.'
+          },
+          {
+            id: 2,
+            name: 'VIP Cart Abandonment WhatsApp Blast',
+            type: 'WhatsApp Broadcast',
+            trigger: 'Shopify Webhook (Cart idle > 2 hrs)',
+            target: 'Subscribers with Cart Value > ₹2,000',
+            delivered: '4,100',
+            replied: '1,890',
+            replyRate: '46.0%',
+            leadsWon: '580',
+            description: 'Pre-approved Meta utility template with a direct 1-click Razorpay checkout link.'
+          },
+          {
+            id: 3,
+            name: 'Click-to-WhatsApp FB Ad Welcome Funnel',
+            type: 'WhatsApp Broadcast',
+            trigger: 'Meta Ad Inbound Click',
+            target: 'Cold Audiences (Tier 1 & Tier 2 Cities)',
+            delivered: '4,370',
+            replied: '1,380',
+            replyRate: '31.5%',
+            leadsWon: '428',
+            description: 'Auto-qualifies prospect with 3 interactive quick reply buttons before routing to sales agent.'
+          }
+        ]);
+
+        // Create Campaign Form Model
+        const newCampaign = ref({
+          name: '',
+          type: 'Instagram Comment-to-DM',
+          trigger: '',
+          template: ''
+        });
+
+        // Computed Properties
+        const filteredConversations = computed(() => {
+          return conversations.value.filter(chat => {
+            const matchesChannel = channelFilter.value === 'all' || chat.channel === channelFilter.value;
+            const matchesStatus = statusFilter.value === 'all' || chat.status === statusFilter.value;
+            const matchesSearch = !searchQuery.value || 
+              chat.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+              chat.phone.includes(searchQuery.value) ||
+              (chat.handle && chat.handle.toLowerCase().includes(searchQuery.value.toLowerCase()));
+            return matchesChannel && matchesStatus && matchesSearch;
+          });
+        });
+
+        const openChatsCount = computed(() => {
+          return conversations.value.filter(c => c.status === 'open').length;
+        });
+
+        const unreadCount = computed(() => {
+          return conversations.value.reduce((acc, c) => acc + (c.unread || 0), 0);
+        });
+
+        const leadsList = computed(() => {
+          return conversations.value.map(c => ({
+            ...c,
+            messagesCount: c.messages.length
+          }));
+        });
+
+        // Methods
+        const selectChat = (chat) => {
+          activeChat.value = chat;
+          chat.unread = 0;
+          scrollToBottom();
+        };
+
+        const toggleChatStatus = () => {
+          if (!activeChat.value) return;
+          activeChat.value.status = activeChat.value.status === 'open' ? 'resolved' : 'open';
+          showToast(`Thread marked as ${activeChat.value.status}`, 'success', 'fa-solid fa-check');
+        };
+
+        const applyTemplate = (text) => {
+          replyText.value = text;
+          showCannedMenu.value = false;
+        };
+
+        const scrollToBottom = () => {
+          nextTick(() => {
+            if (chatContainer.value) {
+              chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+            }
+          });
+        };
+
+        const sendMessage = () => {
+          if (!replyText.value.trim() || !activeChat.value) return;
+          
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+          if (inputMode.value === 'note') {
+            activeChat.value.messages.push({
+              isInternal: true,
+              text: replyText.value,
+              time: timeStr,
+              author: 'Pooja Sharma'
+            });
+            showToast('Internal note pinned to lead dossier', 'success', 'fa-solid fa-lock');
+          } else {
+            activeChat.value.messages.push({
+              isOutgoing: true,
+              text: replyText.value,
+              time: timeStr
+            });
+            activeChat.value.lastMessage = replyText.value;
+            activeChat.value.lastTime = timeStr;
+            showToast('Message delivered via Meta Cloud API', 'success', 'fa-solid fa-paper-plane');
+          }
+
+          replyText.value = '';
+          scrollToBottom();
+        };
+
+        const addTag = () => {
+          if (!newTagInput.value.trim() || !activeChat.value) return;
+          const cleanTag = newTagInput.value.trim().replace(/^#/, '');
+          if (!activeChat.value.tags.includes(cleanTag)) {
+            activeChat.value.tags.push(cleanTag);
+          }
+          newTagInput.value = '';
+        };
+
+        const removeTag = (index) => {
+          if (!activeChat.value) return;
+          activeChat.value.tags.splice(index, 1);
+        };
+
+        const openEnrollModal = (chat) => {
+          showToast(`Lead ${chat.name} enrolled in "Festive VIP WhatsApp Nurture"`, 'success', 'fa-solid fa-bullhorn');
+        };
+
+        const openChatDirect = (id) => {
+          const found = conversations.value.find(c => c.id === id);
+          if (found) {
+            currentTab.value = 'inbox';
+            selectChat(found);
+          }
+        };
+
+        // Real-Time Webhook Simulation (Simulating Laravel Reverb Event)
+        const triggerSimulatedWebhook = () => {
+          isSimulating.value = true;
+          showToast('Listening for incoming Meta webhook payload...', 'success', 'fa-solid fa-satellite-dish');
+
+          setTimeout(() => {
+            const simulatedLead = {
+              id: 'c_' + Date.now(),
+              name: 'Deepak Verma',
+              phone: '+91 98710 32190',
+              handle: '@deepak_v',
+              channel: 'whatsapp',
+              status: 'open',
+              avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+              location: 'Jaipur, RJ',
+              stage: 'Pricing Inquiry',
+              tags: ['festive-sale', 'inbound-webhook'],
+              unread: 1,
+              lastTime: 'Just now',
+              lastMessage: 'Hello! I saw your ad for bulk corporate hampers. Can you send catalog and prices?',
+              messages: [
+                {
+                  isOutgoing: false,
+                  text: 'Hello! I saw your ad for bulk corporate hampers. Can you send catalog and prices?',
+                  time: 'Just now'
+                }
+              ]
+            };
+
+            conversations.value.unshift(simulatedLead);
+            selectChat(simulatedLead);
+            isSimulating.value = false;
+            showToast('New Lead Captured! WhatsApp Webhook dispatched via Reverb', 'success', 'fa-brands fa-whatsapp');
+          }, 1400);
+        };
+
+        const saveCampaign = () => {
+          if (!newCampaign.value.name) return;
+          campaignsList.value.unshift({
+            id: Date.now(),
+            name: newCampaign.value.name,
+            type: newCampaign.value.type,
+            trigger: newCampaign.value.trigger || 'Custom Trigger Rule',
+            target: 'New Contacts Segment',
+            delivered: '0',
+            replied: '0',
+            replyRate: '0%',
+            leadsWon: '0',
+            description: newCampaign.value.template || 'Automatic sequence active'
+          });
+          showCreateCampaignModal.value = false;
+          showToast('Campaign launched & active in Laravel worker queues!', 'success');
+        };
+
+        const confirmRecharge = () => {
+          walletBalance.value += rechargeAmount.value;
+          showAddCreditModal.value = false;
+          showToast(`₹${rechargeAmount.value.toLocaleString('en-IN')} added to WhatsApp Wallet!`, 'success');
+        };
+
+        const exportCSV = () => {
+          showToast('Exporting leads to CSV... Download will start shortly.', 'success', 'fa-solid fa-download');
+        };
+
+        return {
+          currentTab,
+          channelFilter,
+          statusFilter,
+          searchQuery,
+          conversations,
+          filteredConversations,
+          activeChat,
+          selectChat,
+          toggleChatStatus,
+          inputMode,
+          replyText,
+          sendMessage,
+          cannedTemplates,
+          showCannedMenu,
+          applyTemplate,
+          newTagInput,
+          addTag,
+          removeTag,
+          openEnrollModal,
+          openChatsCount,
+          unreadCount,
+          leadsList,
+          openChatDirect,
+          campaignsList,
+          showCreateCampaignModal,
+          newCampaign,
+          saveCampaign,
+          walletBalance,
+          showAddCreditModal,
+          rechargeAmount,
+          confirmRecharge,
+          exportCSV,
+          isSimulating,
+          triggerSimulatedWebhook,
+          toast,
+          chatContainer,
+          showMobileContactDrawer
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
