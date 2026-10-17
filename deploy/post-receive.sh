@@ -40,7 +40,16 @@ if ! PHP="$(find_php)"; then
     exit 1
 fi
 
-echo "==> Deployed $(git rev-parse --short HEAD 2>/dev/null || echo '?') to $APP_DIR"
+# The hook exports the pushed commit as DEPLOY_SHA. A bare `git rev-parse` is not
+# reliable here: a post-receive hook's GIT_DIR can be relative and stop resolving
+# once this script cds.
+SHA="${DEPLOY_SHA:-}"
+if [ -n "$SHA" ]; then
+    SHA="$(printf '%.7s' "$SHA")"
+else
+    SHA="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+fi
+echo "==> Deployed $SHA to $APP_DIR"
 echo "==> PHP $("$PHP" -r 'echo PHP_VERSION;')"
 
 # ---------------------------------------------------------------------------
@@ -112,3 +121,7 @@ echo "==> Rebuilding caches (config + views)"
 "$PHP" artisan view:cache
 
 echo "==> Done. NOTE: the queue worker + scheduler cron jobs still do the runtime work."
+
+# Report success explicitly. Each step above already printed loudly if it failed;
+# a non-zero hook status would only add noise to the push output.
+exit 0

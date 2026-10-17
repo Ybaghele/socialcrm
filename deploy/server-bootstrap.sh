@@ -44,31 +44,43 @@ mkdir -p .git/deploy-state
 #
 # Kept deliberately tiny: it only syncs the working tree and then hands off to
 # deploy/post-receive.sh, which ships with the code and therefore stays current.
+#
+# The app path is baked in below rather than derived at runtime: hooks run with
+# their working directory set to <app>/.git, and $0 is not guaranteed to be
+# absolute, so guessing is fragile. The heredoc is quoted so nothing is expanded
+# now; sed fills in this server's values afterwards.
 # ---------------------------------------------------------------------------
 cat > .git/hooks/post-receive <<'HOOK'
 #!/bin/sh
+# Installed by deploy/server-bootstrap.sh -- regenerated, not hand-edited.
 set -e
 
-APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-BRANCH="main"
+APP_DIR="__APP_DIR__"
+BRANCH="__BRANCH__"
+DEPLOY_SHA=""
 
 # git feeds "<old-sha> <new-sha> <ref>" lines on stdin.
-while read -r _old _new ref; do
+while read -r _old new ref; do
     case "$ref" in
-        refs/heads/*) BRANCH="${ref#refs/heads/}" ;;
+        refs/heads/*) BRANCH="${ref#refs/heads/}"; DEPLOY_SHA="$new" ;;
     esac
 done
+
+# Passed on to deploy/post-receive.sh, which cannot run `git rev-parse` itself:
+# a hook's GIT_DIR may be relative and it no longer resolves after a cd.
+export DEPLOY_SHA
 
 # Sync the working tree to the pushed commit. Untracked files (.env, vendor/,
 # storage/ contents) are left alone; local edits to tracked files are discarded,
 # which is exactly what a deploy target wants.
-git --git-dir="$APP_DIR/.git" --work-tree="$APP_DIR" checkout -f "$BRANCH"
+git --git-dir="$APP_DIR/.git" --work-tree="$APP_DIR" checkout -q -f "$BRANCH"
 
 # Now that the tree is current, run the versioned deploy script.
 exec bash "$APP_DIR/deploy/post-receive.sh"
 HOOK
 
+sed -i "s|__APP_DIR__|$APP_DIR|g; s|__BRANCH__|$BRANCH|g" .git/hooks/post-receive
 chmod +x .git/hooks/post-receive
-echo "==> Installed .git/hooks/post-receive"
+echo "==> Installed .git/hooks/post-receive (APP_DIR=$APP_DIR, BRANCH=$BRANCH)"
 
 echo "==> Ready. Push with: git push <remote> HEAD:refs/heads/$BRANCH"
