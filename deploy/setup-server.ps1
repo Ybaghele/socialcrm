@@ -82,7 +82,6 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "ssh failed (exit $LASTEXITCODE). Check SshHost/SshPort, and that SSH is enabled in hPanel -> Advanced -> SSH Access."
     }
-    if ($check = $null) { }
     if (($probe | Out-String).Trim() -ne 'PRESENT') {
         throw "Remote folder not found: $AppDir. Open hPanel -> Files -> File Manager and confirm the path of the Laravel folder next to public_html."
     }
@@ -116,7 +115,7 @@ try {
     # -----------------------------------------------------------------------
     # 3. Register the remote locally.
     # -----------------------------------------------------------------------
-    $liveUrl = "ssh://$SshUser@$SshHost`:$SshPort$AppDir"
+    $liveUrl = "ssh://${SshUser}@${SshHost}:${SshPort}${AppDir}"
     git remote remove $RemoteName 2>&1 | Out-Null
     git remote add $RemoteName $liveUrl
     Write-Host "==> Added remote '$RemoteName' -> $liveUrl"
