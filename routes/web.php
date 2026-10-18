@@ -8,6 +8,8 @@ use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\ConversationMessageController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\WorkspaceController;
+use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -15,25 +17,30 @@ Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
-        'laravelVersion' => \Illuminate\Foundation\Application::VERSION,
+        'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
     ]);
 });
 
-// Send people straight into their workspace inbox once they sign in.
+// Send people straight into their workspace inbox once they sign in. A user with
+// no workspace yet goes to the create screen instead of a dead-end dashboard.
 Route::get('/dashboard', function () {
     $user = request()->user();
     $workspace = $user?->currentWorkspace ?? $user?->workspaces()->first();
 
     return $workspace
         ? redirect()->route('inbox', ['workspace' => $workspace->slug])
-        : Inertia::render('Dashboard');
+        : redirect()->route('workspaces.create');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // No tenant context exists yet, so these cannot live under /w/{workspace}.
+    Route::get('/workspaces/create', [WorkspaceController::class, 'create'])->name('workspaces.create');
+    Route::post('/workspaces', [WorkspaceController::class, 'store'])->name('workspaces.store');
 });
 
 /*

@@ -8,6 +8,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 
 const form = useForm({
     name: '',
+    workspace_name: '',
     email: '',
     password: '',
     password_confirmation: '',
@@ -39,6 +40,28 @@ const submit = () => {
                 />
 
                 <InputError class="mt-2" :message="form.errors.name" />
+            </div>
+
+            <div class="mt-4">
+                <InputLabel for="workspace_name" value="Business name" />
+
+                <TextInput
+                    id="workspace_name"
+                    type="text"
+                    class="mt-1 block w-full"
+                    v-model="form.workspace_name"
+                    autocomplete="organization"
+                />
+
+                <p class="mt-1 text-xs text-gray-500">
+                    Names your workspace — you can invite your team and connect
+                    WhatsApp/Instagram here. Leave blank to use your own name.
+                </p>
+
+                <InputError
+                    class="mt-2"
+                    :message="form.errors.workspace_name"
+                />
             </div>
 
             <div class="mt-4">
