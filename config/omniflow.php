@@ -32,6 +32,16 @@ return [
             'messenger' => 'https://graph.facebook.com',
             'instagram' => env('META_INSTAGRAM_HOST', 'https://graph.facebook.com'),
         ],
+
+        // Self-service connect (WhatsApp Embedded Signup). Off until all three are
+        // set, which needs Business Verification + App Review first; while blank
+        // the Channels screen offers the manual paste-a-token form only.
+        'app_id' => env('META_APP_ID'),
+        // Registered in the Meta app's "Valid OAuth Redirect URIs". Defaults to
+        // the callback route below; set it explicitly for production.
+        'redirect_uri' => env('META_REDIRECT_URI'),
+        // From the WhatsApp > Embedded Signup configuration in the Meta app.
+        'embedded_signup_config_id' => env('META_EMBEDDED_SIGNUP_CONFIG_ID'),
     ],
 
     // What one WhatsApp template message costs the tenant's wallet, in paise.

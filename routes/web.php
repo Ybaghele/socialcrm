@@ -7,6 +7,7 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\ConversationMessageController;
 use App\Http\Controllers\InboxController;
+use App\Http\Controllers\MetaConnectController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\WorkspaceController;
 use Illuminate\Foundation\Application;
@@ -72,6 +73,10 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         Route::post('/channels/{channelAccount}/verify', [ChannelController::class, 'verify'])->name('channels.verify');
         Route::delete('/channels/{channelAccount}', [ChannelController::class, 'destroy'])->name('channels.destroy');
 
+        // WhatsApp Embedded Signup: the self-service version of the form above.
+        // Owner-only, and needs an active plan just like connecting manually.
+        Route::get('/channels/meta', [MetaConnectController::class, 'start'])->name('channels.meta.start');
+
         Route::post('/conversations/{conversation}/messages', [ConversationMessageController::class, 'store'])
             ->name('conversations.messages.store');
         Route::patch('/conversations/{conversation}', [ConversationController::class, 'update'])
@@ -81,5 +86,15 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         Route::post('/contacts', [ContactController::class, 'store'])->name('contacts.store');
     });
 });
+
+/*
+ * WhatsApp Embedded Signup callback. Meta only knows ONE redirect URI per app, so
+ * this cannot live under /w/{workspace}; the workspace travels back in the signed
+ * `state` parameter and is re-authorised in MetaConnectController::callback().
+ */
+Route::middleware(['auth', 'verified'])->get(
+    '/channels/meta/callback',
+    [MetaConnectController::class, 'callback']
+)->name('channels.meta.callback');
 
 require __DIR__.'/auth.php';

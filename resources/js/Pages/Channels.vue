@@ -8,6 +8,8 @@ const props = defineProps({
     accounts: { type: Array, required: true },
     channelOptions: { type: Array, required: true },
     webhook: { type: Object, required: true },
+    // WhatsApp Embedded Signup — absent/empty while the Meta app is not approved.
+    oauth: { type: Object, required: false, default: () => ({ enabled: false, connectUrl: null }) },
 });
 
 const page = usePage();
@@ -217,6 +219,30 @@ function copy(value, label) {
                         <i class="fa-solid fa-plug-circle-plus text-xs"></i>
                         <span>Connect channel</span>
                     </button>
+                </div>
+
+                <!-- Self-service connect, once Meta has approved the app for it. -->
+                <div
+                    v-if="oauth.enabled && oauth.connectUrl"
+                    class="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                    <div>
+                        <p class="flex items-center gap-2 text-sm font-bold text-emerald-900">
+                            <i class="fa-brands fa-whatsapp text-base"></i>
+                            Connect WhatsApp automatically
+                        </p>
+                        <p class="mt-0.5 text-xs text-emerald-800">
+                            Meta will walk you through creating or picking a WhatsApp Business
+                            Account and phone number. Nothing to copy by hand.
+                        </p>
+                    </div>
+                    <a
+                        :href="oauth.connectUrl"
+                        class="inline-flex shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                    >
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        <span>Connect with Meta</span>
+                    </a>
                 </div>
 
                 <!-- Stats -->
@@ -446,6 +472,16 @@ function copy(value, label) {
                 </div>
 
                 <form class="space-y-3 text-xs" @submit.prevent="submit">
+                    <!-- A nudge towards the automatic flow when it is available -->
+                    <p
+                        v-if="!editing && oauth.enabled && oauth.connectUrl"
+                        class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800"
+                    >
+                        Prefer
+                        <a :href="oauth.connectUrl" class="font-bold underline">Connect with Meta</a>
+                        — it fills in every id and token for you. Use this form only
+                        if you already have a phone number ID and a System User token.
+                    </p>
                     <!-- Channel picker -->
                     <div>
                         <label class="mb-1 block font-semibold text-slate-700">Channel<span class="text-rose-500"> *</span></label>

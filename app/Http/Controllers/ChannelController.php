@@ -6,6 +6,7 @@ use App\Enums\ChannelType;
 use App\Models\ChannelAccount;
 use App\Models\Workspace;
 use App\Services\Billing\PlanLimits;
+use App\Services\Meta\MetaOAuth;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -77,6 +78,12 @@ class ChannelController extends Controller
                 'graphVersion' => config('omniflow.meta.graph_version'),
                 'appSecretConfigured' => (bool) config('omniflow.meta.app_secret'),
             ],
+            // WhatsApp Embedded Signup: shown only when the Meta app is approved for
+            // it, otherwise the manual form below is the only way to connect.
+            'oauth' => app(MetaOAuth::class)->summary(
+                (string) $workspace->slug,
+                $this->maySeePlatformSecrets($request),
+            ),
         ]);
     }
 
