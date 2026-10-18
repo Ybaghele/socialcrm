@@ -84,11 +84,18 @@ hPanel → **Advanced → SSH Access → SSH Keys** → paste the line → save.
 Confirm it works (this must not ask for a password):
 
 ```powershell
-ssh -p 65002 u116324493@<145.79.28.83> "whoami"
+ssh -p 65002 u116324493@145.79.28.83 "whoami"
 ```
 
-> `<145.79.28.83>` is shown in hPanel → Advanced → SSH Access. It looks like an IP
-> address or `srvNNNN.hstgr.io`. Substitute it everywhere below.
+> The host and port are shown in hPanel → Advanced → SSH Access. Both are already the
+> default in `deploy\setup-server.ps1`, so you normally do not have to type them.
+> `srvNNNN.hstgr.io` is equivalent to the IP if you prefer the hostname.
+
+> ⚠️ While you are in `~/.ssh`, do **not** `chmod` your home directory. The web server
+> needs the *execute* bit on `/home/u116324493` to reach anything inside it at all; a
+> `drwx------` home directory makes every URL on the account answer with Hostinger's
+> "This Page Does Not Exist" page. If that ever happens:
+> `ssh -p 65002 u116324493@145.79.28.83 "chmod 711 ~"`.
 
 ### 2. GitHub repository
 
@@ -202,6 +209,7 @@ by hand if the bad release added a migration.
 
 | Symptom | Cause / fix |
 |---|---|
+| **Every** URL answers with Hostinger's "This Page Does Not Exist" page, including plain files like `/robots.txt` | The account home directory is not traversable by the web server (it got `chmod 700`'d). On the server: `chmod 711 ~`. This breaks every site on the account, not just this one. |
 | Push asks for a password every time | SSH key not installed. See setup step 1. |
 | `Permission denied (publickey)` | Key not added in hPanel → Advanced → SSH Access → SSH Keys, or wrong `-SshUser`. |
 | `remote: ! No PHP CLI on PATH` | The hook could not find PHP. Re-run with `PHP_BIN=/opt/alt/php83/usr/bin/php`, or export `PHP_BIN` in `~/.bashrc`. |
