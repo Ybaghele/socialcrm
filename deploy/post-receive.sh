@@ -114,7 +114,10 @@ fi
 bash "$APP_DIR/deploy/wire-public-html.sh" || true
 
 "$PHP" artisan storage:link >/dev/null 2>&1 || true
-chmod -R 775 storage bootstrap/cache 2>/dev/null || true
+# Capital X adds the execute bit to directories only. A plain `chmod -R 775`
+# would also mark files (including storage/*/.gitignore) executable, which makes
+# git report the whole tree as modified after every deploy.
+chmod -R u+rwX,go+rX storage bootstrap/cache 2>/dev/null || true
 
 # The dev-only Vite marker makes Blade load assets from localhost:5173. It is not
 # tracked, but it can survive on the server from an earlier hand upload.

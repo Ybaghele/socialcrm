@@ -108,6 +108,12 @@ try {
     # -----------------------------------------------------------------------
     # 3. GitHub first: the code is safely backed up before prod is touched.
     # -----------------------------------------------------------------------
+    # Relax ErrorActionPreference from here on: Windows PowerShell 5.1 turns a
+    # native command's stderr into a terminating error as soon as it is piped,
+    # and git writes the remote hook's whole deploy log to stderr. Failures are
+    # detected from $LASTEXITCODE instead.
+    $ErrorActionPreference = 'Continue'
+
     if (-not $SkipGitHub -and $hasGitHub) {
         Write-Host "==> git push $GitHubRemote (backup)"
         git push $GitHubRemote "HEAD:refs/heads/$Branch" 2>&1 | Out-Host

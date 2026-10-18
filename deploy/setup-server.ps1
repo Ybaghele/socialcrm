@@ -127,8 +127,11 @@ try {
     # -----------------------------------------------------------------------
     # 4. Prove the remote is reachable (an empty repo lists no refs, exit 0).
     # -----------------------------------------------------------------------
+    $ErrorActionPreference = 'Continue'
     git ls-remote --heads $RemoteName | Out-Null
-    if ($LASTEXITCODE -ne 0) {
+    $reachable = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+    if ($reachable -ne 0) {
         throw "git could not talk to '$RemoteName'. Check the SSH key/password and the URL above."
     }
     Write-Host '==> Remote is reachable.'
