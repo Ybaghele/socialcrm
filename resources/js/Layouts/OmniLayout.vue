@@ -11,6 +11,7 @@ const workspace = computed(() => page.props.workspace);
 const channels = computed(() => page.props.channels ?? []);
 const usage = computed(() => page.props.usage ?? { used: 0, limit: null, percent: 0 });
 const navCounts = computed(() => page.props.navCounts ?? { unread: 0, contacts: 0, activeCampaigns: 0 });
+const canSimulateInbound = computed(() => page.props.canSimulateInbound === true);
 const user = computed(() => page.props.auth?.user);
 
 const initials = computed(() =>
@@ -274,6 +275,7 @@ watch(
             </div>
 
             <button
+                v-if="canSimulateInbound"
                 type="button"
                 class="hidden items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-100 disabled:opacity-60 sm:inline-flex"
                 :disabled="simulating"

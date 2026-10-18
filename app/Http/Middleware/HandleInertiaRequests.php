@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\WorkspaceRole;
 use App\Models\Campaign;
 use App\Models\ChannelAccount;
 use App\Models\Contact;
@@ -46,6 +47,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'workspace' => fn () => $this->workspace($request),
             'channels' => fn () => $this->channels($request),
+            'canSimulateInbound' => fn () => $this->canSimulateInbound($request),
             'usage' => fn () => $this->usage($request),
             'navCounts' => fn () => $this->navCounts($request),
             'flash' => [
@@ -136,5 +138,19 @@ class HandleInertiaRequests extends Middleware
         $workspace = $request->attributes->get('workspace');
 
         return $workspace instanceof Workspace ? $workspace : null;
+    }
+
+    /**
+     * Mirrors InboxController::maySimulateInbound() so the header button only
+     * renders for users who are actually allowed to POST /inbox/simulate.
+     */
+    private function canSimulateInbound(Request $request): bool
+    {
+        if (app()->environment('local')) {
+            return true;
+        }
+
+        return $request->attributes->get('workspace_role') === WorkspaceRole::Owner->value
+            || (bool) $request->user()?->is_super_admin;
     }
 }

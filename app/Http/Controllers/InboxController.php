@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\WorkspaceRole;
 use App\Models\CannedResponse;
 use App\Models\Contact;
 use App\Models\Conversation;
@@ -98,19 +99,21 @@ class InboxController extends Controller
      * POST /w/{workspace}/inbox/simulate
      *
      * Runs the real inbound pipeline (same command SETUP.md documents) so the UI
-     * can be exercised without a Meta app. Purely a development convenience.
+     * can be exercised without a Meta app. Always allowed in local; in production
+     * it is limited to the workspace owner / super admin so customers can't inject
+     * fake threads into their own inbox with no Meta app configured.
      */
     public function simulate(Request $request): RedirectResponse
     {
         $workspace = $this->workspace($request);
+
+        abort_unless($this->maySimulateInbound($request), 404);
 
         $data = $request->validate([
             'channel' => ['nullable', 'in:whatsapp,instagram,messenger'],
             'text' => ['nullable', 'string', 'max:1000'],
             'name' => ['nullable', 'string', 'max:100'],
         ]);
-
-        abort_unless(app()->environment('local'), 404);
 
         Artisan::call('omniflow:simulate-inbound', [
             'workspace' => $workspace->slug,
@@ -121,6 +124,21 @@ class InboxController extends Controller
         ]);
 
         return back()->with('success', 'Simulated inbound message processed — check the top of the list.');
+    }
+
+    /**
+     * The simulator exists so a workspace can be demoed before a Meta app is
+     * wired up. Anyone may use it locally; in production only the owner (or a
+     * super admin) may, since it writes real conversations into the tenant.
+     */
+    private function maySimulateInbound(Request $request): bool
+    {
+        if (app()->environment('local')) {
+            return true;
+        }
+
+        return $request->attributes->get('workspace_role') === WorkspaceRole::Owner->value
+            || (bool) $request->user()?->is_super_admin;
     }
 
     private function workspace(Request $request): Workspace
