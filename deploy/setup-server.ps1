@@ -29,8 +29,9 @@ param(
     [string] $SshUser = 'u116324493',
     [int]    $SshPort = 65002,
 
-    # The Laravel app folder, i.e. the one NEXT TO public_html.
-    [string] $AppDir = '/home/u116324493/domains/socialcrm.vrindaamrit.com/omniflow',
+    # The Laravel app root. On this Hostinger account the domain folder IS the
+    # app root and public_html sits inside it.
+    [string] $AppDir = '/home/u116324493/domains/socialcrm.vrindaamrit.com',
 
     [string] $Branch = 'main',
     [string] $RemoteName = 'live'
@@ -99,18 +100,10 @@ try {
     }
 
     # -----------------------------------------------------------------------
-    # 2b. One-time public_html wiring: make public_html/build follow the app's
-    #     build output so pushes are picked up without copying files by hand.
+    # 2b. public_html is wired automatically by every deploy
+    #     (deploy/wire-public-html.sh, called from deploy/post-receive.sh), so
+    #     there is nothing to do here.
     # -----------------------------------------------------------------------
-    $publicDir  = $AppDir -replace '/[^/]+/?$', '/public_html'
-    $wireScript = Join-Path $PSScriptRoot 'wire-public-html.sh'
-
-    Write-Host "==> Wiring $publicDir/build -> app public/build"
-    $wire = (Get-Content -Raw $wireScript) -replace "`r`n", "`n"
-    $wire | & ssh @sshArgs "APP_DIR='$AppDir' PUBLIC_DIR='$publicDir' bash -s"
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host '!! public_html wiring did not complete - see DEPLOY_GIT.md step 3.'
-    }
 
     # -----------------------------------------------------------------------
     # 3. Register the remote locally.

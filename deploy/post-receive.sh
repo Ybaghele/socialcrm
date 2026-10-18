@@ -60,9 +60,14 @@ echo "==> PHP $("$PHP" -r 'echo PHP_VERSION;')"
 # no-op on ordinary pushes and only runs when dependencies actually change.
 # ---------------------------------------------------------------------------
 COMPOSER=""
-if command -v composer >/dev/null 2>&1; then
-    COMPOSER="composer"
-elif [ -f "$HOME/composer.phar" ]; then
+# A non-interactive SSH shell does not always inherit the interactive PATH.
+for candidate in composer /usr/local/bin/composer /usr/bin/composer; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+        COMPOSER="$candidate"
+        break
+    fi
+done
+if [ -z "$COMPOSER" ] && [ -f "$HOME/composer.phar" ]; then
     COMPOSER="$PHP $HOME/composer.phar"
 fi
 
@@ -102,8 +107,12 @@ if ! "$PHP" artisan migrate --force --no-interaction; then
 fi
 
 # ---------------------------------------------------------------------------
-# 3. storage/app/public -> public_html/storage, and write permissions.
+# 3. Point public_html at the app's build output, keep the storage symlink, and
+#    fix write permissions. The web root cannot be moved on Hostinger, so
+#    public_html/build follows the app instead of being copied by hand.
 # ---------------------------------------------------------------------------
+bash "$APP_DIR/deploy/wire-public-html.sh" || true
+
 "$PHP" artisan storage:link >/dev/null 2>&1 || true
 chmod -R 775 storage bootstrap/cache 2>/dev/null || true
 

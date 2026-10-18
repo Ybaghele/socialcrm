@@ -23,12 +23,14 @@ deploy/push.ps1
    ├── git commit                       │
    ├── git push origin   ──► GitHub ────┤ backup + history
    └── git push live     ───────────────┘
-                          ssh://u116324493@<host>:65002/home/u116324493/.../omniflow
+                          ssh://u116324493@145.79.28.83:65002/home/u116324493/domains/socialcrm.vrindaamrit.com
                                             │
-                                            ├── .git/hooks/post-receive     (installed once)
-                                            │      └── git checkout -f main   ← working tree updated
-                                            └── deploy/post-receive.sh      (ships with the code)
-                                                   ├── composer install   (only if composer.lock changed)
+                                            ├── .git/hooks/post-receive        (installed once)
+                                            │      └── git checkout -f main    ← working tree updated
+                                            └── deploy/post-receive.sh         (ships with the code)
+                                                   ├── deploy/wire-public-html.sh
+                                                   │      └── public_html/build -> <app>/public/build
+                                                   ├── composer install    (only if composer.lock changed)
                                                    ├── php artisan migrate --force
                                                    ├── php artisan storage:link
                                                    ├── chmod storage bootstrap/cache
@@ -46,19 +48,23 @@ Two properties worth knowing:
 ### Server layout (unchanged from the zip deploys)
 
 ```
-/domains/socialcrm.vrindaamrit.com/
-├── public_html/                 <- web root
-│   ├── index.php                <- hand-maintained, points at ../omniflow
-│   ├── .htaccess                <- hand-maintained, Laravel's front controller
-│   ├── build -> ../omniflow/public/build      <- symlink (wired once)
-│   ├── favicon.ico, robots.txt  <- symlinks (wired once)
-│   └── storage -> ../omniflow/storage/app/public
-└── omniflow/                    <- the app, now a git working copy
-    ├── .git/
-    ├── app/ config/ routes/ resources/ ...
-    ├── public/build/            <- served through the symlink above
-    └── .env                     <- untracked, never touched
+/domains/socialcrm.vrindaamrit.com/          <- the app root, now a git working copy
+├── .git/
+├── app/ bootstrap/ config/ database/ routes/ resources/ ...
+├── vendor/                                 <- untracked; installed by composer
+├── storage/                                <- untracked; logs, sessions, uploads
+├── .env                                    <- untracked, never touched
+├── public/
+│   └── build/                              <- the only part served from here
+└── public_html/                            <- fixed web root
+    ├── index.php                           <- requires ../vendor/autoload.php
+    ├── .htaccess
+    ├── build -> /home/.../public/build     <- symlink, rewired on every push
+    └── storage -> ../storage/app/public
 ```
+
+The app root is the domain folder itself and `public_html` sits inside it, which is
+why `public_html/index.php` uses `__DIR__.'/../vendor/autoload.php'`.
 
 ---
 
@@ -78,10 +84,10 @@ hPanel → **Advanced → SSH Access → SSH Keys** → paste the line → save.
 Confirm it works (this must not ask for a password):
 
 ```powershell
-ssh -p 65002 u116324493@<your-ssh-host> "whoami"
+ssh -p 65002 u116324493@<145.79.28.83> "whoami"
 ```
 
-> `<your-ssh-host>` is shown in hPanel → Advanced → SSH Access. It looks like an IP
+> `<145.79.28.83>` is shown in hPanel → Advanced → SSH Access. It looks like an IP
 > address or `srvNNNN.hstgr.io`. Substitute it everywhere below.
 
 ### 2. GitHub repository
@@ -99,36 +105,32 @@ password, or you can add your SSH key there too.
 
 ### 3. Prepare the server
 
-This creates the repository inside the app folder, installs the hook, points
-`public_html/build` at the app, and registers the `live` remote locally.
+This creates the repository inside the app folder, installs the hook, and registers the
+`live` remote locally. `public_html` is wired automatically by the hook on every deploy,
+so there is nothing to do by hand.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File deploy\setup-server.ps1 -SshHost <your-ssh-host>
+powershell -ExecutionPolicy Bypass -File deploy\setup-server.ps1 -SshHost <145.79.28.83>
 ```
 
 Defaults are baked in for this project (`u116324493`, port `65002`,
-`/home/u116324493/domains/socialcrm.vrindaamrit.com/omniflow`). Override any of them,
-and check the app path first if you are unsure:
-
-```powershell
-ssh -p 65002 u116324493@<your-ssh-host> "ls -d ~/domains/*/*/omniflow ~/domains/*/omniflow 2>/dev/null"
-```
-
-If it reports the path as `MISSING`, pass the real one with `-AppDir`.
+`/home/u116324493/domains/socialcrm.vrindaamrit.com`). Override `-AppDir` if the app
+moves, and `-SshUser`/`-SshPort` if the host differs.
 
 The script prints exactly what it does; the important lines are:
 
 ```
-==> App dir: /home/u116324493/domains/socialcrm.vrindaamrit.com/omniflow
-==> Installed .git/hooks/post-receive
-==> build -> ../omniflow/public/build
-==> public_html/build/manifest.json resolves
-==> Added remote 'live' -> ssh://u116324493@<host>:65002/home/u116324493/domains/socialcrm.vrindaamrit.com/omniflow
+==> Checking SSH access to u116324493@145.79.28.83
+==> Found /home/u116324493/domains/socialcrm.vrindaamrit.com
+==> git 2.52.0
+==> Created repository (branch: main)
+==> Installed .git/hooks/post-receive (APP_DIR=/home/u116324493/domains/socialcrm.vrindaamrit.com, BRANCH=main)
+==> Added remote 'live' -> ssh://u116324493@145.79.28.83:65002/home/u116324493/domains/socialcrm.vrindaamrit.com
+==> Remote is reachable.
 ```
 
-> ⚠️ **Back up `public_html/index.php` before the first run if you have customised it.**
-> The wiring step only replaces `build/`, `favicon.ico` and `robots.txt`; `index.php`
-> and `.htaccess` are never touched.
+> ⚠️ `public_html/build` is replaced with a symlink on the first deploy. Everything else
+> in `public_html` is left alone, and `index.php`/`.htaccess` are never touched.
 
 ### 4. First deploy
 
@@ -187,8 +189,8 @@ powershell -ExecutionPolicy Bypass -File deploy\push.ps1 "revert <bad-sha>"
 Hard reset on the server, when you need it *now*:
 
 ```powershell
-ssh -p 65002 u116324493@<your-ssh-host> `
-  "cd ~/domains/socialcrm.vrindaamrit.com/omniflow && git reset --hard <good-sha> && bash deploy/post-receive.sh"
+ssh -p 65002 u116324493@145.79.28.83 `
+  "cd ~/domains/socialcrm.vrindaamrit.com && git reset --hard <good-sha> && bash deploy/post-receive.sh"
 ```
 
 Note that a code rollback does **not** roll back migrations. `php artisan migrate:rollback`
@@ -205,8 +207,8 @@ by hand if the bad release added a migration.
 | `remote: ! No PHP CLI on PATH` | The hook could not find PHP. Re-run with `PHP_BIN=/opt/alt/php83/usr/bin/php`, or export `PHP_BIN` in `~/.bashrc`. |
 | `! MIGRATIONS FAILED` | New code is live but the schema is behind. Fix and re-run: `cd <app> && php artisan migrate --force`. |
 | `composer install FAILED` | It falls back to the `vendor/` already on disk. Fix on the server with `composer install --no-dev --optimize-autoloader`. |
-| CSS/JS 404 or stale after a push | `public_html/build` is not a symlink any more. Re-run `deploy\setup-server.ps1`, or on the server: `bash deploy/wire-public-html.sh` with `APP_DIR`/`PUBLIC_DIR` set. |
-| `Vite manifest not found at .../omniflow/public/build/manifest.json` | `APP_PUBLIC_PATH` is unset or wrong in the server `.env`. It must be the absolute `public_html` path, then `php artisan config:cache`. |
+| CSS/JS 404 or stale after a push | `public_html/build` is not a symlink, or points somewhere wrong. Fix with `bash <app>/deploy/wire-public-html.sh` (no arguments — it self-locates). It also runs on every deploy. |
+| `Vite manifest not found at .../public/build/manifest.json` | `APP_PUBLIC_PATH` is unset or wrong in the server `.env`. It must be the absolute `public_html` path, then `php artisan config:cache`. |
 | `refusing to update checked out branch` | `receive.denyCurrentBranch` was not set. Re-run `deploy\setup-server.ps1`. |
 | `$'\r': command not found` | A `.sh` file has Windows line endings. The PowerShell scripts strip them automatically; if you copied a file by hand, run `sed -i 's/\r$//' deploy/*.sh` on the server. |
 | Config changes in `.env` have no effect | The hook caches config. After editing `.env` manually run `php artisan config:clear && php artisan config:cache`. |
