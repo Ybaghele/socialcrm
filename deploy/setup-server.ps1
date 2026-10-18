@@ -90,11 +90,20 @@ try {
 
     # -----------------------------------------------------------------------
     # 2. Prepare the repository on the server.
+    #
+    # The script is base64-encoded and decoded remotely rather than piped into
+    # ssh's stdin: Windows PowerShell appends CRLF when it writes a string to a
+    # native process's stdin, which leaves a stray carriage return on the last
+    # line. bash reports that as "$'\r': command not found" and exits 127 even
+    # though every command before it worked.
     # -----------------------------------------------------------------------
     Write-Host '==> Creating the repository + post-receive hook'
-    # Normalise to LF: a CRLF shebang would make bash fail with '$'\r': command not found.
+    # Normalise to LF first: a CRLF shebang would break the hook bash writes.
     $bootstrap = (Get-Content -Raw $bootstrapPath) -replace "`r`n", "`n"
-    $bootstrap | & ssh @sshArgs "APP_DIR='$AppDir' BRANCH='$Branch' bash -s"
+    $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($bootstrap))
+    $bootstrapCmd = "APP_DIR='$AppDir' BRANCH='$Branch' " +
+                    "bash -c 'printf %s $b64 | base64 -d | bash -s'"
+    & ssh @sshArgs $bootstrapCmd
     if ($LASTEXITCODE -ne 0) {
         throw "Server setup failed (exit $LASTEXITCODE). See the output above."
     }
@@ -109,7 +118,9 @@ try {
     # 3. Register the remote locally.
     # -----------------------------------------------------------------------
     $liveUrl = "ssh://${SshUser}@${SshHost}:${SshPort}${AppDir}"
-    git remote remove $RemoteName 2>&1 | Out-Null
+    if ((git remote) -contains $RemoteName) {
+        git remote remove $RemoteName
+    }
     git remote add $RemoteName $liveUrl
     Write-Host "==> Added remote '$RemoteName' -> $liveUrl"
 
