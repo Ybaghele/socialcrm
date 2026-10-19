@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Tenant = one business using OmniFlow.
+        // Tenant = one business using SocialDesk.
         Schema::create('workspaces', function (Blueprint $table) {
             $table->id();
             $table->string('name');

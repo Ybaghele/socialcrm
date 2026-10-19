@@ -105,12 +105,12 @@ const steps = [
 
 const faqs = [
     {
-        q: 'Which channels does OmniFlow support?',
+        q: 'Which channels does SocialDesk support?',
         a: 'WhatsApp Business, Instagram Direct and Facebook Messenger. All three share the same inbox, contact records and campaign tools.',
     },
     {
         q: 'How do WhatsApp broadcasts work?',
-        a: 'You author message templates in Meta Business Manager. Once Meta approves them, sync them into OmniFlow, pick an audience of opted-in contacts, fill in any variables and launch.',
+        a: 'You author message templates in Meta Business Manager. Once Meta approves them, sync them into SocialDesk, pick an audience of opted-in contacts, fill in any variables and launch.',
     },
     {
         q: 'Do I need Meta Business Verification?',
@@ -130,12 +130,12 @@ const primaryCta = computed(() => (props.canRegister ? route('register') : route
 </script>
 
 <template>
-    <Head title="OmniFlow — WhatsApp, Instagram & Messenger inbox, CRM and broadcasts">
+    <Head title="SocialDesk — WhatsApp, Instagram & Messenger inbox, CRM and broadcasts">
         <meta
             name="description"
-            content="OmniFlow brings WhatsApp, Instagram and Messenger into one inbox, with a built-in CRM, Meta-approved template broadcasts and transparent wallet billing."
+            content="SocialDesk brings WhatsApp, Instagram and Messenger into one inbox, with a built-in CRM, Meta-approved template broadcasts and transparent wallet billing."
         />
-        <meta property="og:title" content="OmniFlow — one inbox for WhatsApp, Instagram & Messenger" />
+        <meta property="og:title" content="SocialDesk — one inbox for WhatsApp, Instagram & Messenger" />
         <meta property="og:type" content="website" />
     </Head>
 
@@ -145,11 +145,8 @@ const primaryCta = computed(() => (props.canRegister ? route('register') : route
         <!-- ---------------------------------------------------------------- -->
         <header class="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur">
             <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-                <a href="#top" class="flex items-center gap-2.5">
-                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-indigo-400 text-white shadow-md shadow-brand-500/30">
-                        <i class="fa-solid fa-bolt text-sm"></i>
-                    </div>
-                    <span class="text-base font-extrabold tracking-tight text-slate-900">OmniFlow</span>
+                <a href="#top" class="flex items-center">
+                    <img src="/images/logo.png" alt="SocialDesk" class="h-8 w-auto" />
                 </a>
 
                 <nav class="hidden items-center gap-8 md:flex">
@@ -259,7 +256,7 @@ const primaryCta = computed(() => (props.canRegister ? route('register') : route
                     </h1>
 
                     <p class="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
-                        OmniFlow unifies WhatsApp, Instagram and Messenger for your team — with a built-in CRM, Meta-approved
+                        SocialDesk unifies WhatsApp, Instagram and Messenger for your team — with a built-in CRM, Meta-approved
                         template broadcasts and simple wallet billing. No more juggling apps.
                     </p>
 
@@ -297,7 +294,7 @@ const primaryCta = computed(() => (props.canRegister ? route('register') : route
                             <span class="h-2.5 w-2.5 rounded-full bg-rose-400"></span>
                             <span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
                             <span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
-                            <span class="ml-2 text-[11px] font-semibold text-slate-400">OmniFlow · Inbox</span>
+                            <span class="ml-2 text-[11px] font-semibold text-slate-400">SocialDesk · Inbox</span>
                         </div>
                         <div class="grid grid-cols-5 overflow-hidden rounded-xl border border-slate-100">
                             <!-- Thread list -->
@@ -371,7 +368,7 @@ const primaryCta = computed(() => (props.canRegister ? route('register') : route
                         Built to run the whole customer conversation
                     </h2>
                     <p class="mt-4 text-lg text-slate-600">
-                        From the first hello to the follow-up broadcast — OmniFlow covers the messaging stack your team needs.
+                        From the first hello to the follow-up broadcast — SocialDesk covers the messaging stack your team needs.
                     </p>
                 </div>
 
@@ -544,14 +541,10 @@ const primaryCta = computed(() => (props.canRegister ? route('register') : route
         <!-- ---------------------------------------------------------------- -->
         <footer class="border-t border-slate-200 bg-white">
             <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 py-10 sm:px-6 md:flex-row">
-                <div class="flex items-center gap-2.5">
-                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-indigo-400 text-white">
-                        <i class="fa-solid fa-bolt text-xs"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-extrabold tracking-tight text-slate-900">OmniFlow</p>
-                        <p class="text-[11px] text-slate-400">Unified customer messaging</p>
-                    </div>
+                <div class="flex items-center gap-3">
+                    <img src="/images/logo.png" alt="SocialDesk" class="h-8 w-auto" />
+                    <span class="hidden h-5 w-px bg-slate-200 sm:block"></span>
+                    <p class="text-[11px] text-slate-400">Unified customer messaging</p>
                 </div>
 
                 <nav class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
@@ -563,7 +556,7 @@ const primaryCta = computed(() => (props.canRegister ? route('register') : route
                     </Link>
                 </nav>
 
-                <p class="text-xs text-slate-400">© {{ new Date().getFullYear() }} OmniFlow. All rights reserved.</p>
+                <p class="text-xs text-slate-400">© {{ new Date().getFullYear() }} SocialDesk. All rights reserved.</p>
             </div>
         </footer>
     </div>

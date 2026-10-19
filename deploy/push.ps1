@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Build, commit and deploy OmniFlow to the live server in one command.
+  Build, commit and deploy SocialDesk to the live server in one command.
 
 .DESCRIPTION
   1. npm run build   - Node is not on the server, so the compiled assets are

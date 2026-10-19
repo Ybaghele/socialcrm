@@ -1,4 +1,4 @@
-# OmniFlow: SaaS core + inbound pipeline
+# SocialDesk: SaaS core + inbound pipeline
 
 Copy the folders into your Laravel app (merge `User.php`, don't overwrite yours blindly).
 

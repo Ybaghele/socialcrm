@@ -1,4 +1,4 @@
-# Deploying OmniFlow to Hostinger (shared / cloud hosting, hPanel)
+# Deploying SocialDesk to Hostinger (shared / cloud hosting, hPanel)
 
 This guide gets your app to a **public HTTPS URL** so Meta can verify the webhook,
 which is required before you can generate/validate the Meta app secret & token flow.

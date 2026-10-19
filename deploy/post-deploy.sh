@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# OmniFlow — post-deploy tasks for Hostinger shared hosting.
+# SocialDesk - post-deploy tasks for Hostinger shared hosting.
 #
 # Run this ON THE SERVER over SSH, after uploading the app:
 #

@@ -1,4 +1,4 @@
-# Deploying OmniFlow with `git push`
+# Deploying SocialDesk with `git push`
 
 This replaces the build-a-zip-and-upload loop. Once set up, getting changes live is:
 

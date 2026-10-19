@@ -103,13 +103,13 @@ watch(
         <!-- ---------------------------------------------------------- -->
         <header class="z-20 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm sm:px-6">
             <div class="flex items-center gap-4 sm:gap-6">
-                <div class="flex items-center gap-2.5">
-                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-indigo-400 text-white shadow-md shadow-brand-500/30">
-                        <i class="fa-solid fa-bolt text-sm"></i>
-                    </div>
-                    <div class="leading-tight">
-                        <p class="text-sm font-extrabold tracking-tight text-slate-900">OmniFlow</p>
-                        <p class="text-[11px] font-medium text-slate-400">{{ workspace?.name ?? 'Workspace' }}</p>
+                <div class="flex items-center gap-3">
+                    <Link :href="route('dashboard')" class="flex items-center">
+                        <img src="/images/logo.png" alt="SocialDesk" class="h-8 w-auto" />
+                    </Link>
+                    <div class="hidden leading-tight sm:block">
+                        <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Workspace</p>
+                        <p class="text-xs font-bold text-slate-700">{{ workspace?.name ?? '—' }}</p>
                     </div>
                 </div>
 

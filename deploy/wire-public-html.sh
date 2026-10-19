@@ -66,6 +66,14 @@ same() {
     [ -f "$1" ] && [ -f "$2" ] && [ "$(cksum <"$1")" = "$(cksum <"$2")" ]
 }
 
+# Recursive fingerprint of a directory: "path cksum" for every file, sorted.
+# Used to compare a web-root copy against the repo copy without diffutils.
+tree_hash() {
+    ( cd "$1" 2>/dev/null && find . -type f -print | LC_ALL=C sort | while IFS= read -r f; do
+        printf '%s %s\n' "$f" "$(cksum <"$f")"
+      done )
+}
+
 for file in favicon.ico robots.txt; do
     [ -f "$APP_DIR/public/$file" ] || continue
     if [ -L "$PUBLIC_DIR/$file" ]; then
@@ -79,6 +87,22 @@ for file in favicon.ico robots.txt; do
         echo "        (replace it with the app copy if deploys should manage it)"
     fi
 done
+
+# Brand images (logos, app icon). Same rule as build/: the repo is the source of
+# truth, so link the directory instead of copying it. A hand-uploaded directory is
+# only replaced when it is byte-for-byte identical to the app copy.
+if [ -d "$APP_DIR/public/images" ]; then
+    if [ -L "$PUBLIC_DIR/images" ]; then
+        echo "   images is already a symlink -> $(readlink "$PUBLIC_DIR/images")"
+    elif [ ! -e "$PUBLIC_DIR/images" ] || [ "$(tree_hash "$APP_DIR/public/images")" = "$(tree_hash "$PUBLIC_DIR/images")" ]; then
+        rm -rf "$PUBLIC_DIR/images"
+        ln -sfn "$APP_DIR/public/images" "$PUBLIC_DIR/images"
+        echo "   images -> $APP_DIR/public/images"
+    else
+        echo "   images differs from app/public/images - left alone"
+        echo "        (push the new files to the repo if deploys should manage them)"
+    fi
+fi
 
 if [ -f "$PUBLIC_DIR/build/manifest.json" ]; then
     echo "   manifest resolves"

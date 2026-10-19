@@ -5,7 +5,7 @@ return [
     'trial_plan' => env('OMNIFLOW_TRIAL_PLAN', 'growth'),
 
     // Slugs a customer may not claim (they'd collide with routes or look official).
-    'reserved_slugs' => ['www', 'app', 'api', 'admin', 'billing', 'login', 'register', 'webhooks', 'support', 'status', 'omniflow'],
+    'reserved_slugs' => ['www', 'app', 'api', 'admin', 'billing', 'login', 'register', 'webhooks', 'support', 'status', 'socialdesk', 'omniflow'],
 
     // Created for every new workspace. Matches your UI pipeline.
     'default_pipeline_stages' => [

@@ -18,7 +18,7 @@ export default {
                 sans: ['Inter', 'Figtree', ...defaultTheme.fontFamily.sans],
             },
             colors: {
-                // The product's indigo accent, matching the OmniFlow design mockup.
+                // The product's indigo accent, matching the SocialDesk design mockup.
                 brand: {
                     50: '#eef2ff',
                     100: '#e0e7ff',

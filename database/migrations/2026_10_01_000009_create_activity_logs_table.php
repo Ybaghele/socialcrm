@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // "OmniFlow Activity Log" in the lead dossier.
+        // "SocialDesk Activity Log" in the lead dossier.
         Schema::create('activity_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('workspace_id')->constrained()->cascadeOnDelete();
