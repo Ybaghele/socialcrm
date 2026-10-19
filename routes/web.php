@@ -178,4 +178,8 @@ Route::middleware('auth')->post('/invitations/{token}', [InvitationController::c
     ->where('token', '[A-Za-z0-9]{20,64}')
     ->name('invitations.accept');
 
+// Platform (super-admin) console: /admin/*. Cross-tenant, so it lives inside the
+// normal web group but outside /w/{workspace}.
+require __DIR__.'/admin.php';
+
 require __DIR__.'/auth.php';

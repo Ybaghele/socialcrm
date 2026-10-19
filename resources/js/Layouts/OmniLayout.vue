@@ -13,6 +13,7 @@ const usage = computed(() => page.props.usage ?? { used: 0, limit: null, percent
 const navCounts = computed(() => page.props.navCounts ?? { unread: 0, contacts: 0, activeCampaigns: 0 });
 const canSimulateInbound = computed(() => page.props.canSimulateInbound === true);
 const user = computed(() => page.props.auth?.user);
+const isSuperAdmin = computed(() => user.value?.is_super_admin === true);
 
 const initials = computed(() =>
     (user.value?.name ?? '?')
@@ -343,6 +344,7 @@ watch(
                             <div class="my-1 border-t border-slate-100"></div>
                         </template>
 
+                        <DropdownLink v-if="isSuperAdmin" :href="route('admin.dashboard')">Platform console</DropdownLink>
                         <DropdownLink :href="route('profile.edit')">Profile</DropdownLink>
                         <DropdownLink :href="route('workspaces.create')">New workspace</DropdownLink>
                         <DropdownLink :href="route('logout')" method="post" as="button">Log out</DropdownLink>
@@ -448,6 +450,14 @@ watch(
                         <i class="fa-solid text-[11px]" :class="simulating ? 'fa-circle-notch fa-spin' : 'fa-play'"></i>
                         {{ simulating ? 'Simulating…' : 'Simulate inbound' }}
                     </button>
+                    <Link
+                        v-if="isSuperAdmin"
+                        :href="route('admin.dashboard')"
+                        class="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                        @click="mobileNavOpen = false"
+                    >
+                        <i class="fa-solid fa-shield-halved text-[11px]"></i> Platform console
+                    </Link>
                     <Link
                         :href="route('profile.edit')"
                         class="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
