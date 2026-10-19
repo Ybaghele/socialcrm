@@ -11,18 +11,40 @@ use App\Http\Controllers\MetaConnectController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\WorkspaceController;
-use Illuminate\Foundation\Application;
+use App\Models\Plan;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
+/*
+ * Public marketing landing page. Pricing is read from the same `plans` table the
+ * billing screen uses so the two can never drift — guarded by hasTable so the
+ * page still renders before the database is migrated (and in tests without a
+ * schema).
+ */
 Route::get('/', function () {
+    $plans = Schema::hasTable('plans')
+        ? Plan::query()
+            ->where('is_active', true)
+            ->orderBy('price_paise')
+            ->get(['name', 'slug', 'price_paise', 'monthly_active_contacts', 'max_instagram_accounts', 'max_agent_seats'])
+            ->map(fn (Plan $plan) => [
+                'name' => $plan->name,
+                'slug' => $plan->slug,
+                'priceRupees' => (int) round($plan->price_paise / 100),
+                'contacts' => (int) $plan->monthly_active_contacts,
+                'instagram' => (int) $plan->max_instagram_accounts,
+                'seats' => (int) $plan->max_agent_seats,
+            ])
+            ->all()
+        : [];
+
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
+        'plans' => $plans,
     ]);
-});
+})->name('home');
 
 // Send people straight into their workspace inbox once they sign in. A user with
 // no workspace yet goes to the create screen instead of a dead-end dashboard.
