@@ -2,6 +2,7 @@
 .DS_Store
 .env
 .env.backup
+.env.bak*
 .env.production
 .phpactor.json
 .phpunit.result.cache
@@ -20,6 +21,10 @@
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
+# Server-only web root: holds symlinks (build, images, favicon.ico, robots.txt,
+# storage) into /public, wired by deploy/wire-public-html.sh. Exists on
+# Hostinger only, so it shows as untracked noise on every server-side status.
+/public_html/
 /storage/*.key
 /storage/pail
 /vendor
