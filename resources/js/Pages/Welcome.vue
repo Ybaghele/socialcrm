@@ -146,7 +146,7 @@ const primaryCta = computed(() => (props.canRegister ? route('register') : route
         <header class="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur">
             <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
                 <a href="#top" class="flex items-center">
-                    <img src="/images/logo.png" alt="SocialDesk" class="h-8 w-auto" />
+                    <img src="/images/logo.png" alt="SocialDesk" class="h-10 w-auto" />
                 </a>
 
                 <nav class="hidden items-center gap-8 md:flex">
@@ -542,7 +542,7 @@ const primaryCta = computed(() => (props.canRegister ? route('register') : route
         <footer class="border-t border-slate-200 bg-white">
             <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 py-10 sm:px-6 md:flex-row">
                 <div class="flex items-center gap-3">
-                    <img src="/images/logo.png" alt="SocialDesk" class="h-8 w-auto" />
+                    <img src="/images/logo.png" alt="SocialDesk" class="h-10 w-auto" />
                     <span class="hidden h-5 w-px bg-slate-200 sm:block"></span>
                     <p class="text-[11px] text-slate-400">Unified customer messaging</p>
                 </div>
