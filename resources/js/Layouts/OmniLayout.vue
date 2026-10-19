@@ -42,6 +42,7 @@ const meta = (channel) => channelMeta[channel] ?? { label: channel, icon: 'fa-so
 // the two can never drift apart.
 const canManageTeam = computed(() => ['owner', 'admin'].includes(workspace.value?.role));
 const myWorkspaces = computed(() => page.props.myWorkspaces ?? []);
+const notifications = computed(() => page.props.notifications ?? { unread: 0, items: [] });
 
 const navItems = computed(() => {
     const slug = workspace.value?.slug;
@@ -52,6 +53,7 @@ const navItems = computed(() => {
 
     return [
         { label: 'Unified Inbox', icon: 'fa-solid fa-inbox', href: route('inbox', { workspace: slug }), component: 'Inbox', badge: navCounts.value.unread || null, badgeClass: 'bg-brand-100 text-brand-700' },
+        { label: 'Analytics', icon: 'fa-solid fa-chart-line', href: route('analytics.index', { workspace: slug }), component: 'Analytics', badge: null, badgeClass: '' },
         { label: 'Lead CRM', icon: 'fa-solid fa-address-book', href: route('contacts.index', { workspace: slug }), component: 'Contacts', badge: navCounts.value.contacts || null, badgeClass: 'bg-slate-100 text-slate-500' },
         { label: 'Campaigns', icon: 'fa-solid fa-bullhorn', href: route('campaigns.index', { workspace: slug }), component: 'Campaigns', badge: navCounts.value.activeCampaigns ? `${navCounts.value.activeCampaigns} live` : null, badgeClass: 'bg-emerald-100 text-emerald-700' },
         { label: 'Templates', icon: 'fa-solid fa-file-lines', href: route('templates.index', { workspace: slug }), component: 'Templates', badge: null, badgeClass: '' },
@@ -65,6 +67,39 @@ const navItems = computed(() => {
 });
 
 const isActive = (component) => page.component === component;
+
+// Notification levels → icon + colour for the bell dropdown and the list page.
+const levelMeta = {
+    info: { icon: 'fa-solid fa-circle-info', text: 'text-slate-400' },
+    success: { icon: 'fa-solid fa-circle-check', text: 'text-emerald-500' },
+    warning: { icon: 'fa-solid fa-triangle-exclamation', text: 'text-amber-500' },
+    danger: { icon: 'fa-solid fa-circle-exclamation', text: 'text-rose-500' },
+};
+
+const levelIcon = (level) => (levelMeta[level] ?? levelMeta.info).icon;
+const levelText = (level) => (levelMeta[level] ?? levelMeta.info).text;
+
+function markAllRead() {
+    if (!workspace.value) {
+        return;
+    }
+
+    router.post(route('notifications.readAll', { workspace: workspace.value.slug }), {}, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+}
+
+// Clicking a notification marks it read; the server then redirects to its link.
+function openNotification(item) {
+    if (!workspace.value) {
+        return;
+    }
+
+    router.post(route('notifications.read', { workspace: workspace.value.slug, notification: item.id }), {}, {
+        preserveScroll: true,
+    });
+}
 
 // The mobile drawer is a full-screen overlay; it must close on every navigation.
 const mobileNavOpen = ref(false);
@@ -208,6 +243,70 @@ watch(
                         Upgrade
                     </Link>
                 </div>
+
+                <!-- Notifications -->
+                <Dropdown align="right" width="72" content-classes="bg-white">
+                    <template #trigger>
+                        <button
+                            type="button"
+                            class="relative flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
+                            aria-label="Notifications"
+                        >
+                            <i class="fa-solid fa-bell"></i>
+                            <span
+                                v-if="notifications.unread"
+                                class="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white"
+                            >
+                                {{ notifications.unread > 9 ? '9+' : notifications.unread }}
+                            </span>
+                        </button>
+                    </template>
+                    <template #content>
+                        <div class="w-72">
+                            <div class="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
+                                <p class="text-xs font-bold text-slate-700">Notifications</p>
+                                <button
+                                    v-if="notifications.unread"
+                                    type="button"
+                                    class="text-[11px] font-semibold text-brand-600 hover:underline"
+                                    @click="markAllRead"
+                                >
+                                    Mark all read
+                                </button>
+                            </div>
+
+                            <div class="max-h-80 overflow-y-auto">
+                                <button
+                                    v-for="item in notifications.items"
+                                    :key="item.id"
+                                    type="button"
+                                    class="flex w-full items-start gap-2.5 px-4 py-3 text-left transition hover:bg-slate-50"
+                                    :class="!item.readAt && 'bg-brand-50/50'"
+                                    @click="openNotification(item)"
+                                >
+                                    <i :class="[levelIcon(item.level), levelText(item.level)]" class="mt-0.5 text-xs"></i>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block text-xs font-semibold text-slate-700">{{ item.title }}</span>
+                                        <span v-if="item.body" class="mt-0.5 block text-[11px] leading-snug text-slate-500">{{ item.body }}</span>
+                                        <span class="mt-1 block text-[10px] font-medium text-slate-400">{{ item.createdAt }}</span>
+                                    </span>
+                                </button>
+
+                                <p v-if="!notifications.items.length" class="px-4 py-8 text-center text-[11px] text-slate-400">
+                                    You're all caught up.
+                                </p>
+                            </div>
+
+                            <Link
+                                v-if="workspace"
+                                :href="route('notifications.index', { workspace: workspace.slug })"
+                                class="block border-t border-slate-100 px-4 py-2.5 text-center text-[11px] font-semibold text-brand-600 transition hover:bg-slate-50"
+                            >
+                                View all
+                            </Link>
+                        </div>
+                    </template>
+                </Dropdown>
 
                 <!-- Agent profile -->
                 <Dropdown align="right" width="48">

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\ChannelController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\InboxController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\MetaConnectController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SegmentController;
 use App\Http\Controllers\TemplateController;
@@ -125,6 +127,14 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         Route::post('/segments', [SegmentController::class, 'store'])->name('segments.store');
         Route::patch('/segments/{segment}', [SegmentController::class, 'update'])->name('segments.update');
         Route::delete('/segments/{segment}', [SegmentController::class, 'destroy'])->name('segments.destroy');
+
+        // Analytics + the notification centre behind the header bell.
+        Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
+        Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])
+            ->whereNumber('notification')
+            ->name('notifications.read');
 
         Route::post('/conversations/{conversation}/messages', [ConversationMessageController::class, 'store'])
             ->name('conversations.messages.store');

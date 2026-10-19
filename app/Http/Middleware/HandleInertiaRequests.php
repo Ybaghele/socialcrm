@@ -8,6 +8,7 @@ use App\Models\ChannelAccount;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Workspace;
+use App\Models\WorkspaceNotification;
 use App\Services\Billing\PlanLimits;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -51,6 +52,7 @@ class HandleInertiaRequests extends Middleware
             'usage' => fn () => $this->usage($request),
             'navCounts' => fn () => $this->navCounts($request),
             'myWorkspaces' => fn () => $this->myWorkspaces($request),
+            'notifications' => fn () => $this->notifications($request),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -165,6 +167,45 @@ class HandleInertiaRequests extends Middleware
                 'isCurrent' => $workspace->id === $user->current_workspace_id,
             ])
             ->all();
+    }
+
+    /**
+     * The header bell: unread count plus the latest handful for the dropdown.
+     * Returns empty for guests and non-tenant pages (no workspace resolved).
+     *
+     * @return array{unread: int, items: array<int, array<string, mixed>>}
+     */
+    private function notifications(Request $request): array
+    {
+        $user = $request->user();
+        $workspace = $this->workspaceFromRequest($request);
+
+        if (! $user || ! $workspace) {
+            return ['unread' => 0, 'items' => []];
+        }
+
+        $query = WorkspaceNotification::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('user_id', $user->id);
+
+        $unread = (clone $query)->whereNull('read_at')->count();
+
+        $items = (clone $query)
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get()
+            ->map(fn (WorkspaceNotification $notification): array => [
+                'id' => $notification->id,
+                'level' => $notification->level,
+                'title' => $notification->title,
+                'body' => $notification->body,
+                'url' => $notification->url,
+                'readAt' => $notification->read_at?->toIso8601String(),
+                'createdAt' => $notification->created_at?->diffForHumans(),
+            ])
+            ->all();
+
+        return ['unread' => $unread, 'items' => $items];
     }
 
     /**

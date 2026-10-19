@@ -67,5 +67,17 @@ return [
         'retry_after_minutes' => (int) env('OMNIFLOW_CAMPAIGN_HOLD_MINUTES', 15),
     ],
 
+    // When a debit crosses below this many paise, owners + admins get a one-off
+    // "wallet running low" nudge (only on the crossing, so it cannot spam).
+    'billing' => [
+        'low_balance_paise' => (int) env('OMNIFLOW_LOW_BALANCE_PAISE', 5000),
+    ],
+
+    // The Analytics screen window options, in days.
+    'analytics' => [
+        'ranges' => [7, 30, 90],
+        'default_range' => (int) env('OMNIFLOW_ANALYTICS_DAYS', 30),
+    ],
+
     'max_text_length' => ['whatsapp' => 4096, 'instagram' => 1000, 'messenger' => 1000], // IG/Messenger values are conservative
 ];

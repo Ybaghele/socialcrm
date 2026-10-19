@@ -5,6 +5,7 @@ namespace App\Services\Meta;
 use App\Models\ChannelAccount;
 use App\Models\MessageTemplate;
 use App\Models\Workspace;
+use App\Services\Notifications\WorkspaceNotifier;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -78,7 +79,14 @@ class TemplateSync
                 ];
 
                 if ($existing) {
+                    $previous = $existing->status;
+
                     $existing->update($attributes);
+
+                    if ($template['status'] !== $previous) {
+                        $this->announce($workspace, $template['name'], $template['status'], $template['rejected_reason']);
+                    }
+
                     $updated++;
                 } else {
                     MessageTemplate::create($attributes);
@@ -88,6 +96,28 @@ class TemplateSync
         }
 
         return ['imported' => $imported, 'updated' => $updated, 'scanned' => $scanned, 'errors' => $errors];
+    }
+
+    /**
+     * Tell owners + admins when Meta approves or rejects a template — that is the
+     * moment it becomes (or stops being) usable in a broadcast.
+     */
+    private function announce(Workspace $workspace, string $name, string $status, ?string $reason): void
+    {
+        if (! in_array($status, ['approved', 'rejected'], true)) {
+            return;
+        }
+
+        $approved = $status === 'approved';
+
+        app(WorkspaceNotifier::class)->managers(
+            $workspace,
+            'template_'.$status,
+            $approved ? "Template “{$name}” was approved" : "Template “{$name}” was rejected",
+            $approved ? 'You can now use it in a broadcast.' : ($reason ?: 'Open Templates to see why.'),
+            "/w/{$workspace->slug}/templates",
+            $approved ? 'success' : 'danger',
+        );
     }
 
     /**

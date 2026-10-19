@@ -7,6 +7,7 @@ use App\Models\CampaignEnrollment;
 use App\Models\Contact;
 use App\Models\Workspace;
 use App\Services\Audiences\SegmentQuery;
+use App\Services\Notifications\WorkspaceNotifier;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -52,7 +53,7 @@ class ProcessCampaignEnrollments implements ShouldQueue
                 continue;
             }
 
-            Tenancy::run($workspace, function () use ($campaign) {
+            Tenancy::run($workspace, function () use ($campaign, $workspace) {
                 // A scheduled broadcast sleeps until its moment arrives.
                 if (! $this->isDue($campaign)) {
                     return;
@@ -70,7 +71,7 @@ class ProcessCampaignEnrollments implements ShouldQueue
 
                 $this->enrollAudience($campaign);
                 $this->dispatchPending($campaign);
-                $this->completeIfFinished($campaign);
+                $this->completeIfFinished($campaign, $workspace);
             });
         }
     }
@@ -170,7 +171,7 @@ class ProcessCampaignEnrollments implements ShouldQueue
     }
 
     /** Close the campaign once everyone has been attempted. */
-    private function completeIfFinished(Campaign $campaign): void
+    private function completeIfFinished(Campaign $campaign, Workspace $workspace): void
     {
         // Nothing enrolled yet (e.g. an empty audience) — stay live so contacts
         // who opt in later are still picked up.
@@ -196,5 +197,14 @@ class ProcessCampaignEnrollments implements ShouldQueue
         }
 
         $campaign->update(['status' => 'completed', 'ended_at' => now()]);
+
+        app(WorkspaceNotifier::class)->managers(
+            $workspace,
+            'campaign_completed',
+            "Broadcast “{$campaign->name}” finished",
+            $campaign->delivered_count.' delivered · '.$campaign->replied_count.' replied · '.$campaign->won_count.' won.',
+            "/w/{$workspace->slug}/campaigns",
+            'success',
+        );
     }
 }
