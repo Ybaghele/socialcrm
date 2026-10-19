@@ -454,11 +454,10 @@ Better the client hears these from you now than discovers them later.
 
 1. **Timing.** *Inbound* is fast: a customer message is processed as soon as the acknowledgement
    is flushed back to Meta, so it appears in the inbox within **a second or two**. *Outbound* is
-   the slower direction — an agent's reply, a broadcast send or a follow-up step is queued, and
-   the worker ticks **once a minute**, so it can take up to about **60 seconds** to leave. That is
-   a hosting cron setting rather than an app limit: running the worker continuously instead of
-   once a minute removes the delay entirely. Until that's changed, expect inbound to feel
-   instant and outbound to lag.
+   queued and a worker delivers it, so it leaves within a second or two as well while the worker
+   is running — the bundled `deploy/queue-tick.sh` cron keeps one alive for most of every minute.
+   If that cron stops *and* the queue backs up, sends wait until it is restored, so it's worth
+   checking `storage/framework/queue-tick.stamp` is fresh after any hosting change.
 2. **Self-service WhatsApp connection** needs **Meta Business Verification + App Review** before
    it can be offered to real customers. Until that's approved, channels are connected by pasting
    a token from Meta Business Manager — same end result, more clicking.

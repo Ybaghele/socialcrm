@@ -31,7 +31,7 @@ which is required before you can generate/validate the Meta app secret & token f
 | 9 | Create the `public_html/storage` symlink | see §3 |
 | 10 | Create `.env` from `.env.production.example`, fill DB + Meta values | File Manager |
 | 11 | Run `bash deploy/post-deploy.sh` (SSH) — or add a one-off cron | see §5–§8b |
-| 12 | Add the 2 cron jobs (queue worker + scheduler) | hPanel → Advanced → Cron Jobs |
+| 12 | Add the cron job (scheduler + queue worker via `deploy/queue-tick.sh`) | hPanel → Advanced → Cron Jobs |
 | 13 | Paste the URL + verify token into Meta's Webhook config | Meta App Dashboard |
 
 Details for each step are below. If you get stuck on step 8, §13 lists the usual causes.
@@ -308,18 +308,38 @@ PHP_BIN=/opt/alt/php83/usr/bin/php bash deploy/post-deploy.sh
 ## 9. Queue worker via cron (REQUIRED for inbound Meta messages)
 
 The webhook saves each event and **queues** a job. Without a worker, the URL verifies but
-messages never appear. On shared hosting, drain the queue every minute.
+messages never appear. On shared hosting, keep a worker alive via cron.
 
-hPanel → **Advanced → Cron Jobs** → add two jobs (every minute):
+Add **one** cron job (every minute) that runs the bundled heartbeat script:
 
 ```
-* * * * * /usr/bin/php /home/u123456789/domains/yourdomain.com/omniflow/artisan queue:work --stop-when-empty --max-time=55 --tries=3 >> /dev/null 2>&1
-* * * * * /usr/bin/php /home/u123456789/domains/yourdomain.com/omniflow/artisan schedule:run >> /dev/null 2>&1
+* * * * * /bin/bash /home/u123456789/domains/yourdomain.com/omniflow/deploy/queue-tick.sh >> /dev/null 2>&1
 ```
 
-**PHP binary path:** `/usr/bin/php` follows the account default. To pin the version, use
-the path shown in hPanel → PHP Configuration, e.g. `/opt/alt/php83/usr/bin/php`. Confirm
-with `which php` over SSH (or `php -v`).
+`deploy/queue-tick.sh` runs `schedule:run` and then `queue:work --max-time=55 --sleep=1`, so a
+single entry covers both the scheduler and the worker.
+
+> **Do not use `--stop-when-empty`.** It makes the worker exit the instant the queue is
+> empty — typically within a second — so any job queued mid-minute (an agent reply, a
+> broadcast send) waits for the next cron tick, i.e. up to ~60 seconds. `--max-time=55`
+> keeps the worker polling for the rest of the minute and exits before the next tick, so
+> workers never pile up. `--sleep=1` (default 3) cuts the worst-case pickup delay.
+
+**Why a script and not a one-liner:** the hPanel cron field mangles shell quoting and `&&`
+chains easily, and a broken chain silently stops *both* the scheduler and the worker. A single
+short command removes that failure mode.
+
+**Is it actually running?** The script stamps `storage/framework/queue-tick.stamp` each tick
+and appends to `storage/logs/queue-tick.log`. A stale stamp means the cron is not firing:
+
+```bash
+cat storage/framework/queue-tick.stamp          # should be within the last minute or two
+tail -n 40 storage/logs/queue-tick.log
+```
+
+**PHP binary path:** the script pins `/opt/alt/php84/usr/bin/php`. To change it, edit `PHP_BIN`
+at the top of `deploy/queue-tick.sh`. The path comes from hPanel → PHP Configuration; confirm
+over SSH with `php -v`.
 
 > Fallback if you have no SSH/composer: the cron job itself can run artisan, so once files
 > are uploaded and `.env` exists this still works. `key:generate` / `migrate` can also be
