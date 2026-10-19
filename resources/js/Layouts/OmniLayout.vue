@@ -55,6 +55,7 @@ const navItems = computed(() => {
         { label: 'Lead CRM', icon: 'fa-solid fa-address-book', href: route('contacts.index', { workspace: slug }), component: 'Contacts', badge: navCounts.value.contacts || null, badgeClass: 'bg-slate-100 text-slate-500' },
         { label: 'Campaigns', icon: 'fa-solid fa-bullhorn', href: route('campaigns.index', { workspace: slug }), component: 'Campaigns', badge: navCounts.value.activeCampaigns ? `${navCounts.value.activeCampaigns} live` : null, badgeClass: 'bg-emerald-100 text-emerald-700' },
         { label: 'Templates', icon: 'fa-solid fa-file-lines', href: route('templates.index', { workspace: slug }), component: 'Templates', badge: null, badgeClass: '' },
+        { label: 'Audiences', icon: 'fa-solid fa-filter', href: route('segments.index', { workspace: slug }), component: 'Segments', badge: null, badgeClass: '' },
         ...(canManageTeam.value
             ? [{ label: 'Team', icon: 'fa-solid fa-users', href: route('members.index', { workspace: slug }), component: 'Members', badge: null, badgeClass: '' }]
             : []),

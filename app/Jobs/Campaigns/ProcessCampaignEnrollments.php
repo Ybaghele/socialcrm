@@ -6,6 +6,7 @@ use App\Models\Campaign;
 use App\Models\CampaignEnrollment;
 use App\Models\Contact;
 use App\Models\Workspace;
+use App\Services\Audiences\SegmentQuery;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -15,10 +16,10 @@ use Illuminate\Queue\SerializesModels;
 
 /**
  * The heartbeat of a broadcast. Run every minute by `campaigns:process` on the
- * scheduler, it does three things per active broadcast, always inside the owning
- * tenant's context:
+ * scheduler, it does three things per active (or now-due scheduled) broadcast,
+ * always inside the owning tenant's context:
  *
- *   1. enrol opted-in contacts that are not in the campaign yet (in chunks);
+ *   1. enrol the segment audience (opted-in only) not yet in the campaign;
  *   2. hand a bounded batch of pending enrolments to the delivery queue;
  *   3. mark the campaign completed once the whole audience has been sent to.
  *
@@ -40,7 +41,7 @@ class ProcessCampaignEnrollments implements ShouldQueue
     public function handle(): void
     {
         $campaigns = Campaign::withoutGlobalScopes()
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'scheduled'])
             ->where('type', 'broadcast')
             ->get();
 
@@ -52,6 +53,11 @@ class ProcessCampaignEnrollments implements ShouldQueue
             }
 
             Tenancy::run($workspace, function () use ($campaign) {
+                // A scheduled broadcast sleeps until its moment arrives.
+                if (! $this->isDue($campaign)) {
+                    return;
+                }
+
                 // A broadcast with no approved template (or a disconnected number)
                 // cannot send anything, so leave it exactly as the operator left it
                 // instead of enrolling contacts just to fail them.
@@ -59,10 +65,29 @@ class ProcessCampaignEnrollments implements ShouldQueue
                     return;
                 }
 
+                // The moment is here: a scheduled broadcast becomes live.
+                $this->activateIfScheduled($campaign);
+
                 $this->enrollAudience($campaign);
                 $this->dispatchPending($campaign);
                 $this->completeIfFinished($campaign);
             });
+        }
+    }
+
+    /** A scheduled broadcast sleeps until its moment arrives. */
+    private function isDue(Campaign $campaign): bool
+    {
+        return $campaign->status !== 'scheduled'
+            || $campaign->scheduled_at === null
+            || $campaign->scheduled_at->isPast();
+    }
+
+    /** The first tick after a scheduled broadcast comes due flips it live. */
+    private function activateIfScheduled(Campaign $campaign): void
+    {
+        if ($campaign->status === 'scheduled') {
+            $campaign->update(['status' => 'active', 'started_at' => now()]);
         }
     }
 
@@ -90,12 +115,11 @@ class ProcessCampaignEnrollments implements ShouldQueue
     {
         $limit = (int) config('omniflow.campaigns.enroll_batch', 500);
 
-        $contacts = Contact::query()
-            ->where('is_opted_in', true)
+        $contacts = SegmentQuery::for($campaign->segment)
             ->whereDoesntHave('enrollments', fn ($query) => $query->where('campaign_id', $campaign->id))
-            ->orderBy('id')
+            ->orderBy('contacts.id')
             ->limit($limit)
-            ->get(['id']);
+            ->get(['contacts.id']);
 
         if ($contacts->isEmpty()) {
             return;
@@ -163,8 +187,7 @@ class ProcessCampaignEnrollments implements ShouldQueue
             return;
         }
 
-        $moreToEnroll = Contact::query()
-            ->where('is_opted_in', true)
+        $moreToEnroll = SegmentQuery::for($campaign->segment)
             ->whereDoesntHave('enrollments', fn ($query) => $query->where('campaign_id', $campaign->id))
             ->exists();
 

@@ -7,9 +7,12 @@ use App\Models\CampaignTrigger;
 use App\Models\ChannelAccount;
 use App\Models\Contact;
 use App\Models\MessageTemplate;
+use App\Models\Segment;
 use App\Jobs\Campaigns\ProcessCampaignEnrollments;
+use App\Services\Audiences\SegmentQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -115,6 +118,16 @@ class CampaignController extends Controller
                     ->map(fn (ChannelAccount $account) => ['id' => $account->id, 'name' => $account->name])
                     ->all(),
                 'optedInCount' => Contact::query()->where('is_opted_in', true)->count(),
+                // Saved audiences the operator can target instead of "everyone".
+                'segments' => Segment::query()
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'cached_count'])
+                    ->map(fn (Segment $segment) => [
+                        'id' => $segment->id,
+                        'name' => $segment->name,
+                        'count' => (int) ($segment->cached_count ?? 0),
+                    ])
+                    ->all(),
                 'pendingTemplates' => MessageTemplate::query()->whereIn('status', ['pending', 'in_review'])->count(),
             ],
         ]);
@@ -132,6 +145,9 @@ class CampaignController extends Controller
             'template_variables' => ['nullable', 'array'],
             'template_variables.*' => ['nullable', 'string', 'max:500'],
             'channel_account_id' => ['nullable', 'integer'],
+            // Optional audience + schedule for a broadcast.
+            'segment_id' => ['nullable', 'integer'],
+            'scheduled_at' => ['nullable', 'date'],
         ]);
 
         $funnel = self::FUNNELS[$data['funnel']];
@@ -214,33 +230,72 @@ class CampaignController extends Controller
             ]);
         }
 
+        // Audience: everyone opted in, or a saved segment.
+        $segment = null;
+
+        if (! empty($data['segment_id'])) {
+            $segment = Segment::query()->find($data['segment_id']);
+
+            if (! $segment) {
+                throw ValidationException::withMessages([
+                    'segment_id' => 'That audience no longer exists. Pick another one.',
+                ]);
+            }
+        }
+
+        // Schedule: blank means "send now".
+        $scheduledAt = null;
+
+        if (! empty($data['scheduled_at'])) {
+            $scheduledAt = Carbon::parse($data['scheduled_at']);
+
+            if ($scheduledAt->isPast()) {
+                throw ValidationException::withMessages([
+                    'scheduled_at' => 'Pick a time in the future.',
+                ]);
+            }
+        }
+
         // Pad/trim the operator's values so the count always matches the template.
         $expected = $template->placeholderCount();
         $variables = array_slice(array_pad(array_values($data['template_variables'] ?? []), $expected, ''), 0, $expected);
 
         $campaign = Campaign::create([
             'name' => $data['name'],
-            'description' => $this->describe('broadcast'),
+            'description' => $scheduledAt
+                ? 'Scheduled WhatsApp template broadcast — sends itself at the chosen time.'
+                : $this->describe('broadcast'),
             'type' => 'broadcast',
             'channel' => 'whatsapp',
-            'status' => 'active',
+            'status' => $scheduledAt ? 'scheduled' : 'active',
             'message_body' => $template->bodyText(),
-            'audience_description' => ['label' => $funnel['target']],
-            'started_at' => now(),
+            'audience_description' => ['label' => $segment?->name ?? $funnel['target']],
+            'segment_id' => $segment?->id,
+            'scheduled_at' => $scheduledAt,
+            'started_at' => $scheduledAt ? null : now(),
             'created_by' => $request->user()->id,
             'channel_account_id' => $account->id,
             'message_template_id' => $template->id,
             'template_variables' => $variables,
         ]);
 
+        // The audience size comes from the same query the enrolment job will use.
+        $audience = SegmentQuery::for($segment)->count();
+        $plural = $audience === 1 ? '' : 's';
+
+        if ($scheduledAt) {
+            return back()->with(
+                'success',
+                "“{$campaign->name}” is scheduled for {$scheduledAt->format('d M Y, g:i A')} and will reach {$audience} contact{$plural}.",
+            );
+        }
+
         // Enroll + start delivering right away (and keep going on the schedule).
         ProcessCampaignEnrollments::dispatch()->afterCommit();
 
-        $audience = Contact::query()->where('is_opted_in', true)->count();
-
         return back()->with(
             'success',
-            "“{$campaign->name}” is live and enrolling {$audience} opted-in contact".($audience === 1 ? '' : 's').'.',
+            "“{$campaign->name}” is live and enrolling {$audience} contact{$plural}.",
         );
     }
 
@@ -250,13 +305,21 @@ class CampaignController extends Controller
             'status' => ['required', Rule::in(['active', 'paused', 'completed'])],
         ]);
 
-        $campaign->status = $data['status'];
+        $next = $data['status'];
 
-        if ($data['status'] === 'active' && ! $campaign->started_at) {
+        // Resuming a broadcast that is still waiting for its send time puts it
+        // back on the clock instead of firing it early.
+        if ($next === 'active' && $campaign->scheduled_at?->isFuture()) {
+            $next = 'scheduled';
+        }
+
+        $campaign->status = $next;
+
+        if ($next === 'active' && ! $campaign->started_at) {
             $campaign->started_at = now();
         }
 
-        if ($data['status'] === 'completed') {
+        if ($next === 'completed') {
             $campaign->ended_at = now();
         }
 
@@ -284,6 +347,7 @@ class CampaignController extends Controller
             'replyRate' => $campaign->reply_rate,
             'leadsWon' => (int) $campaign->won_count,
             'startedAt' => $campaign->started_at?->toIso8601String(),
+            'scheduledAt' => $campaign->scheduled_at?->toIso8601String(),
         ];
     }
 

@@ -12,7 +12,7 @@ const props = defineProps({
     broadcast: {
         type: Object,
         required: false,
-        default: () => ({ templates: [], accounts: [], optedInCount: 0, pendingTemplates: 0 }),
+        default: () => ({ templates: [], accounts: [], optedInCount: 0, pendingTemplates: 0, segments: [] }),
     },
 });
 const page = usePage();
@@ -29,6 +29,8 @@ const form = useForm({
     template_id: null,
     template_variables: [],
     channel_account_id: null,
+    segment_id: null,
+    scheduled_at: '',
 });
 
 // Funnel types whose trigger is a keyword — the modal only asks for keywords then.
@@ -40,6 +42,14 @@ const approvedTemplates = computed(() => props.broadcast.templates ?? []);
 const selectedTemplate = computed(
     () => approvedTemplates.value.find((template) => template.id === form.template_id) ?? null,
 );
+
+// Audience: everyone opted in, or one of the saved segments.
+const savedSegments = computed(() => props.broadcast.segments ?? []);
+const selectedSegment = computed(
+    () => savedSegments.value.find((segment) => segment.id === form.segment_id) ?? null,
+);
+// A filled-in send time turns the launch into a scheduled broadcast.
+const isScheduled = computed(() => Boolean(form.scheduled_at));
 
 const sendingAccount = computed(() => {
     const template = selectedTemplate.value;
@@ -78,6 +88,16 @@ const mergeTags = ['{{first_name}}', '{{name}}', '{{phone}}', '{{city}}'];
 // "{{1}}" for a zero-based variable index — the label on each input.
 function token(index) {
     return `{{${index + 1}}}`;
+}
+
+// A compact local timestamp for the "Sends <when>" line on a scheduled card.
+function formatWhen(iso) {
+    return new Date(iso).toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
 }
 
 function openModal() {
@@ -226,6 +246,13 @@ function setStatus(campaign, next) {
                                                 <strong class="font-mono text-slate-700">{{ campaign.template }}</strong>
                                             </span>
                                         </template>
+                                        <template v-if="campaign.status === 'scheduled' && campaign.scheduledAt">
+                                            <span>•</span>
+                                            <span>
+                                                Sends
+                                                <strong class="text-amber-700">{{ formatWhen(campaign.scheduledAt) }}</strong>
+                                            </span>
+                                        </template>
                                     </div>
                                 </div>
                             </div>
@@ -252,10 +279,10 @@ function setStatus(campaign, next) {
                                 </div>
 
                                 <button
-                                    v-if="campaign.status === 'active'"
+                                    v-if="campaign.status === 'active' || campaign.status === 'scheduled'"
                                     type="button"
                                     class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100"
-                                    title="Pause this campaign"
+                                    :title="campaign.status === 'scheduled' ? 'Cancel this scheduled send' : 'Pause this campaign'"
                                     @click="setStatus(campaign, 'paused')"
                                 >
                                     <i class="fa-solid fa-pause"></i>
@@ -411,11 +438,57 @@ function setStatus(campaign, next) {
                                 </div>
                             </div>
 
+                            <div>
+                                <div class="mb-1 flex items-center justify-between">
+                                    <label class="block font-semibold text-slate-700">Audience</label>
+                                    <Link
+                                        :href="route('segments.index', { workspace: workspaceSlug })"
+                                        class="text-[11px] font-semibold text-brand-600 hover:underline"
+                                    >
+                                        Manage audiences
+                                    </Link>
+                                </div>
+                                <select
+                                    v-model="form.segment_id"
+                                    class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                                >
+                                    <option :value="null">
+                                        All opted-in subscribers ({{ broadcast.optedInCount.toLocaleString() }})
+                                    </option>
+                                    <option v-for="segment in savedSegments" :key="segment.id" :value="segment.id">
+                                        {{ segment.name }} ({{ (segment.count ?? 0).toLocaleString() }})
+                                    </option>
+                                </select>
+                                <p v-if="form.errors.segment_id" class="mt-1 text-[11px] text-rose-600">
+                                    {{ form.errors.segment_id }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label class="mb-1 block font-semibold text-slate-700">Send time</label>
+                                <input
+                                    v-model="form.scheduled_at"
+                                    type="datetime-local"
+                                    class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                                />
+                                <p v-if="form.errors.scheduled_at" class="mt-1 text-[11px] text-rose-600">
+                                    {{ form.errors.scheduled_at }}
+                                </p>
+                                <p v-else class="mt-1 text-[11px] text-slate-400">Leave blank to send now.</p>
+                            </div>
+
                             <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-500">
                                 <i class="fa-solid fa-users mr-1 text-brand-600"></i>
-                                <strong class="text-slate-700">Audience:</strong> all opted-in subscribers
-                                ({{ broadcast.optedInCount.toLocaleString() }} contact{{ broadcast.optedInCount === 1 ? '' : 's' }}).
-                                Each send is charged to your wallet.
+                                <strong class="text-slate-700">Audience:</strong>
+                                <template v-if="selectedSegment">
+                                    {{ selectedSegment.name }} — {{ (selectedSegment.count ?? 0).toLocaleString() }} opted-in
+                                    contact{{ selectedSegment.count === 1 ? '' : 's' }}.
+                                </template>
+                                <template v-else>
+                                    all opted-in subscribers ({{ broadcast.optedInCount.toLocaleString() }}).
+                                </template>
+                                <span v-if="isScheduled"> Scheduled — nothing sends until the chosen time.</span>
+                                <span v-else> Each send is charged to your wallet.</span>
                             </div>
                         </template>
                     </template>
@@ -454,8 +527,8 @@ function setStatus(campaign, next) {
                             class="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
                             :disabled="form.processing || (isBroadcast && (!form.template_id || !approvedTemplates.length))"
                         >
-                            <i class="fa-solid" :class="form.processing ? 'fa-circle-notch fa-spin' : 'fa-rocket'"></i>
-                            Launch Campaign
+                            <i class="fa-solid" :class="form.processing ? 'fa-circle-notch fa-spin' : isScheduled ? 'fa-clock' : 'fa-rocket'"></i>
+                            {{ isScheduled ? 'Schedule Campaign' : 'Launch Campaign' }}
                         </button>
                     </div>
                 </form>

@@ -11,6 +11,7 @@ use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\MetaConnectController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SegmentController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\WorkspaceController;
 use App\Models\Plan;
@@ -117,6 +118,13 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         Route::delete('/members/invitations/{invitation}', [MemberController::class, 'destroyInvitation'])->name('members.invitations.destroy');
         Route::patch('/members/{user}', [MemberController::class, 'update'])->name('members.update');
         Route::delete('/members/{user}', [MemberController::class, 'destroy'])->name('members.destroy');
+
+        // Saved audiences (segments) that broadcasts can target.
+        Route::get('/segments', [SegmentController::class, 'index'])->name('segments.index');
+        Route::post('/segments/preview', [SegmentController::class, 'preview'])->name('segments.preview');
+        Route::post('/segments', [SegmentController::class, 'store'])->name('segments.store');
+        Route::patch('/segments/{segment}', [SegmentController::class, 'update'])->name('segments.update');
+        Route::delete('/segments/{segment}', [SegmentController::class, 'destroy'])->name('segments.destroy');
 
         Route::post('/conversations/{conversation}/messages', [ConversationMessageController::class, 'store'])
             ->name('conversations.messages.store');
