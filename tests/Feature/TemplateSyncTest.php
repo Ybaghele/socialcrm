@@ -23,6 +23,7 @@ class TemplateSyncTest extends TestCase
     use RefreshDatabase;
 
     private Workspace $workspace;
+    private User $owner;
     private ChannelAccount $account;
 
     protected function setUp(): void
@@ -31,9 +32,9 @@ class TemplateSyncTest extends TestCase
 
         config(['omniflow.meta.graph_version' => 'v22.0']);
 
-        $owner = User::factory()->create();
-        $this->workspace = Workspace::create(['name' => 'Acme', 'slug' => 'acme', 'owner_id' => $owner->id]);
-        $this->workspace->users()->attach($owner->id, ['role' => 'owner']);
+        $this->owner = User::factory()->create();
+        $this->workspace = Workspace::create(['name' => 'Acme', 'slug' => 'acme', 'owner_id' => $this->owner->id]);
+        $this->workspace->users()->attach($this->owner->id, ['role' => 'owner']);
 
         $plan = Plan::create([
             'name' => 'Growth', 'slug' => 'growth', 'price_paise' => 499900,
@@ -120,5 +121,26 @@ class TemplateSyncTest extends TestCase
         $this->assertSame(0, $result['scanned']);
         $this->assertCount(1, $result['errors']);
         $this->assertStringContainsString('Invalid OAuth access token', $result['errors'][0]);
+    }
+
+    public function test_the_templates_screen_renders_the_mirrored_templates(): void
+    {
+        Tenancy::run($this->workspace, fn () => MessageTemplate::create([
+            'channel_account_id' => $this->account->id,
+            'name' => 'diwali_festive_offer_2026', 'language' => 'en',
+            'category' => 'marketing', 'status' => 'approved',
+            'components' => [['type' => 'BODY', 'text' => 'Hi {{1}}, festive offer!']],
+        ]));
+
+        $this->actingAs($this->owner)
+            ->get('/w/acme/templates')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Templates')
+                ->where('counts.approved', 1)
+                ->where('templates.0.name', 'diwali_festive_offer_2026')
+                ->where('templates.0.status', 'approved')
+                ->where('templates.0.variables', 1)
+                ->where('whatsappAccounts.0.name', 'Main line'));
     }
 }
