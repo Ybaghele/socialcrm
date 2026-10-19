@@ -264,6 +264,18 @@ class TeamInvitationTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_the_invitation_email_renders_with_a_working_link(): void
+    {
+        $token = $this->invite('teammate@example.com', WorkspaceRole::Admin);
+        $invitation = WorkspaceInvitation::firstOrFail();
+
+        $html = (new WorkspaceInvitationMail($this->workspace, $this->owner, $invitation, $token))->render();
+
+        $this->assertStringContainsString('Accept invitation', $html);
+        $this->assertStringContainsString('/invitations/'.$token, $html);
+        $this->assertStringContainsString('Acme', $html);
+    }
+
     // ---- Accepting ---------------------------------------------------------
 
     public function test_an_invited_user_can_accept_and_lands_in_the_workspace(): void
