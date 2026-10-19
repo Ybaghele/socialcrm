@@ -205,7 +205,23 @@ class CampaignBroadcastTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_a_disconnected_number_fails_the_enrolment_instead_of_sending(): void
+    public function test_a_campaign_without_an_approved_template_is_left_untouched(): void
+    {
+        $this->contact('Ananya', '+919820044821', true);
+
+        $campaign = $this->makeBroadcast(['message_template_id' => null]);
+
+        (new ProcessCampaignEnrollments)->handle();
+
+        Tenancy::run($this->workspace, function () use ($campaign) {
+            $this->assertSame(0, CampaignEnrollment::where('campaign_id', $campaign->id)->count());
+            $this->assertSame('active', $campaign->fresh()->status);
+        });
+
+        Http::assertNothingSent();
+    }
+
+    public function test_a_disconnected_number_is_skipped_instead_of_enrolled(): void
     {
         $this->contact('Ananya', '+919820044821', true);
 
@@ -216,10 +232,9 @@ class CampaignBroadcastTest extends TestCase
         (new ProcessCampaignEnrollments)->handle();
 
         Tenancy::run($this->workspace, function () use ($campaign) {
-            $enrollment = CampaignEnrollment::firstWhere('campaign_id', $campaign->id);
-            $this->assertNotNull($enrollment);
-            $this->assertSame('failed', $enrollment->status);
+            $this->assertSame(0, CampaignEnrollment::where('campaign_id', $campaign->id)->count());
             $this->assertSame(0, (int) $campaign->fresh()->delivered_count);
+            $this->assertSame('active', $campaign->fresh()->status);
         });
 
         Http::assertNothingSent();

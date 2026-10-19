@@ -52,11 +52,37 @@ class ProcessCampaignEnrollments implements ShouldQueue
             }
 
             Tenancy::run($workspace, function () use ($campaign) {
+                // A broadcast with no approved template (or a disconnected number)
+                // cannot send anything, so leave it exactly as the operator left it
+                // instead of enrolling contacts just to fail them.
+                if (! $this->isReady($campaign)) {
+                    return;
+                }
+
                 $this->enrollAudience($campaign);
                 $this->dispatchPending($campaign);
                 $this->completeIfFinished($campaign);
             });
         }
+    }
+
+    /**
+     * A campaign can only be processed once it has a connected number and an
+     * approved template that belongs to that number.
+     */
+    private function isReady(Campaign $campaign): bool
+    {
+        $account = $campaign->channelAccount;
+
+        if (! $account || $account->status !== 'connected') {
+            return false;
+        }
+
+        $template = $campaign->template;
+
+        return $template !== null
+            && $template->isApproved()
+            && $template->channel_account_id === $account->id;
     }
 
     /** Add the next chunk of opted-in contacts to the campaign. */
