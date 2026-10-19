@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\CreateWorkspace;
+use App\Models\Workspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -39,5 +40,28 @@ class WorkspaceController extends Controller
         return redirect()
             ->route('channels.index', ['workspace' => $workspace->slug])
             ->with('success', $workspace->name.' is ready — connect a channel to start receiving conversations.');
+    }
+
+    /**
+     * POST /workspaces/{workspace:slug}/switch
+     *
+     * Changes which workspace the signed-in user lands in. Used by the profile
+     * menu when someone belongs to more than one workspace (e.g. after accepting
+     * an invitation).
+     */
+    public function switch(Request $request, Workspace $workspace): RedirectResponse
+    {
+        $user = $request->user();
+
+        abort_unless(
+            (bool) $user?->is_super_admin || (bool) $user?->workspaces()->whereKey($workspace->id)->exists(),
+            403,
+        );
+
+        abort_if($workspace->isSuspended() && ! $user->is_super_admin, 403, 'This workspace has been suspended.');
+
+        $user->forceFill(['current_workspace_id' => $workspace->id])->save();
+
+        return redirect()->route('inbox', ['workspace' => $workspace->slug]);
     }
 }

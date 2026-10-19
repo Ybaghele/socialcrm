@@ -51,6 +51,13 @@ return [
         'whatsapp_template_paise' => ['marketing' => 88, 'utility' => 30, 'authentication' => 30],
     ],
 
+    // Team invitations. Only the sha256 of the token is stored; the plain token is
+    // emailed (and flashed once to the inviter) so it can be shared over WhatsApp
+    // when the customer's mail server is not set up yet.
+    'team' => [
+        'invitation_ttl_days' => (int) env('OMNIFLOW_INVITATION_TTL_DAYS', 7),
+    ],
+
     // Broadcasts ride the per-minute scheduler, so each tick does a bounded slice
     // of work: enrol a chunk, then queue a chunk of sends. The hold parks an
     // enrolment for a few minutes so a slow worker is not double-queued.

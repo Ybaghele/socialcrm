@@ -66,8 +66,10 @@ class RegisteredUserController extends Controller
         Auth::login($user);
 
         // Land on the screen that makes the product useful instead of an empty inbox.
+        // intended() lets an invitation link lead a brand-new user into the invite
+        // flow right after signup; without one it falls back to the channel screen.
         return redirect()
-            ->route('channels.index', ['workspace' => $workspace->slug])
+            ->intended(route('channels.index', ['workspace' => $workspace->slug]))
             ->with('success', 'Welcome! Connect a channel to start receiving conversations.');
     }
 }

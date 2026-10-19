@@ -7,6 +7,8 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\ConversationMessageController;
 use App\Http\Controllers\InboxController;
+use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\MemberController;
 use App\Http\Controllers\MetaConnectController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TemplateController;
@@ -65,6 +67,10 @@ Route::middleware('auth')->group(function () {
     // No tenant context exists yet, so these cannot live under /w/{workspace}.
     Route::get('/workspaces/create', [WorkspaceController::class, 'create'])->name('workspaces.create');
     Route::post('/workspaces', [WorkspaceController::class, 'store'])->name('workspaces.store');
+
+    // Switch the workspace you land in (profile menu) — no tenant prefix either.
+    Route::post('/workspaces/{workspace:slug}/switch', [WorkspaceController::class, 'switch'])
+        ->name('workspaces.switch');
 });
 
 /*
@@ -104,6 +110,14 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         // Owner-only, and needs an active plan just like connecting manually.
         Route::get('/channels/meta', [MetaConnectController::class, 'start'])->name('channels.meta.start');
 
+        // Team: seats, roles and pending invitations (owners + admins).
+        Route::get('/members', [MemberController::class, 'index'])->name('members.index');
+        Route::post('/members/invitations', [MemberController::class, 'store'])->name('members.invitations.store');
+        Route::post('/members/invitations/{invitation}/resend', [MemberController::class, 'resend'])->name('members.invitations.resend');
+        Route::delete('/members/invitations/{invitation}', [MemberController::class, 'destroyInvitation'])->name('members.invitations.destroy');
+        Route::patch('/members/{user}', [MemberController::class, 'update'])->name('members.update');
+        Route::delete('/members/{user}', [MemberController::class, 'destroy'])->name('members.destroy');
+
         Route::post('/conversations/{conversation}/messages', [ConversationMessageController::class, 'store'])
             ->name('conversations.messages.store');
         Route::patch('/conversations/{conversation}', [ConversationController::class, 'update'])
@@ -123,5 +137,18 @@ Route::middleware(['auth', 'verified'])->get(
     '/channels/meta/callback',
     [MetaConnectController::class, 'callback']
 )->name('channels.meta.callback');
+
+/*
+ * Team invitations. The invitee is not a member yet, so these cannot live under
+ * /w/{workspace}; the workspace travels in the hashed token instead. The GET is
+ * open so we can send guests through login/register and back.
+ */
+Route::get('/invitations/{token}', [InvitationController::class, 'show'])
+    ->where('token', '[A-Za-z0-9]{20,64}')
+    ->name('invitations.show');
+
+Route::middleware('auth')->post('/invitations/{token}', [InvitationController::class, 'accept'])
+    ->where('token', '[A-Za-z0-9]{20,64}')
+    ->name('invitations.accept');
 
 require __DIR__.'/auth.php';

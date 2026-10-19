@@ -55,6 +55,12 @@ final class PlanLimits
         return $max !== null && $this->seatsUsed() < $max;
     }
 
+    /** The plan's agent-seat cap (null = unlimited), for the Team screen. */
+    public function seatLimit(): ?int
+    {
+        return $this->limit('max_agent_seats');
+    }
+
     // ---- Channel accounts --------------------------------------------------
 
     public function canConnect(ChannelType $channel): bool

@@ -27,9 +27,9 @@ class AcceptInvitation
             $workspace->users()->syncWithoutDetaching([$user->id => ['role' => $invitation->role]]);
             $invitation->update(['accepted_at' => now()]);
 
-            if (! $user->current_workspace_id) {
-                $user->forceFill(['current_workspace_id' => $workspace->id])->save();
-            }
+            // The user just took an explicit action for this workspace, so make it
+            // the one they land in. They can switch back from the profile menu.
+            $user->forceFill(['current_workspace_id' => $workspace->id])->save();
 
             return $workspace;
         });

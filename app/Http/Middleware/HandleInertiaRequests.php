@@ -50,9 +50,11 @@ class HandleInertiaRequests extends Middleware
             'canSimulateInbound' => fn () => $this->canSimulateInbound($request),
             'usage' => fn () => $this->usage($request),
             'navCounts' => fn () => $this->navCounts($request),
+            'myWorkspaces' => fn () => $this->myWorkspaces($request),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+                'inviteLink' => fn () => $request->session()->get('invite_link'),
             ],
         ];
     }
@@ -138,6 +140,31 @@ class HandleInertiaRequests extends Middleware
         $workspace = $request->attributes->get('workspace');
 
         return $workspace instanceof Workspace ? $workspace : null;
+    }
+
+    /**
+     * Every workspace the signed-in user belongs to, for the profile-menu switcher.
+     *
+     * @return array<int, array{id: int, name: string, slug: string, isCurrent: bool}>
+     */
+    private function myWorkspaces(Request $request): array
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return [];
+        }
+
+        return $user->workspaces()
+            ->orderBy('workspaces.name')
+            ->get()
+            ->map(fn (Workspace $workspace): array => [
+                'id' => $workspace->id,
+                'name' => $workspace->name,
+                'slug' => $workspace->slug,
+                'isCurrent' => $workspace->id === $user->current_workspace_id,
+            ])
+            ->all();
     }
 
     /**

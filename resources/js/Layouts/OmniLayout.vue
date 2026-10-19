@@ -40,6 +40,9 @@ const meta = (channel) => channelMeta[channel] ?? { label: channel, icon: 'fa-so
 
 // Primary navigation, shared by the desktop tab strip and the mobile drawer so
 // the two can never drift apart.
+const canManageTeam = computed(() => ['owner', 'admin'].includes(workspace.value?.role));
+const myWorkspaces = computed(() => page.props.myWorkspaces ?? []);
+
 const navItems = computed(() => {
     const slug = workspace.value?.slug;
 
@@ -52,6 +55,9 @@ const navItems = computed(() => {
         { label: 'Lead CRM', icon: 'fa-solid fa-address-book', href: route('contacts.index', { workspace: slug }), component: 'Contacts', badge: navCounts.value.contacts || null, badgeClass: 'bg-slate-100 text-slate-500' },
         { label: 'Campaigns', icon: 'fa-solid fa-bullhorn', href: route('campaigns.index', { workspace: slug }), component: 'Campaigns', badge: navCounts.value.activeCampaigns ? `${navCounts.value.activeCampaigns} live` : null, badgeClass: 'bg-emerald-100 text-emerald-700' },
         { label: 'Templates', icon: 'fa-solid fa-file-lines', href: route('templates.index', { workspace: slug }), component: 'Templates', badge: null, badgeClass: '' },
+        ...(canManageTeam.value
+            ? [{ label: 'Team', icon: 'fa-solid fa-users', href: route('members.index', { workspace: slug }), component: 'Members', badge: null, badgeClass: '' }]
+            : []),
         { label: 'Billing', icon: 'fa-solid fa-wallet', href: route('billing', { workspace: slug }), component: 'Billing', badge: null, badgeClass: '' },
         { label: 'Channels', icon: 'fa-solid fa-plug', href: route('channels.index', { workspace: slug }), component: 'Channels', badge: channels.value.length ? null : '!', badgeClass: 'bg-amber-100 text-amber-700' },
     ];
@@ -217,6 +223,25 @@ watch(
                         </button>
                     </template>
                     <template #content>
+                        <template v-if="myWorkspaces.length > 1">
+                            <p class="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                                Switch workspace
+                            </p>
+                            <DropdownLink
+                                v-for="item in myWorkspaces"
+                                :key="item.id"
+                                :href="route('workspaces.switch', { workspace: item.slug })"
+                                method="post"
+                                as="button"
+                            >
+                                <span class="flex items-center justify-between gap-3">
+                                    <span class="truncate">{{ item.name }}</span>
+                                    <i v-if="item.isCurrent" class="fa-solid fa-check text-[10px] text-brand-600"></i>
+                                </span>
+                            </DropdownLink>
+                            <div class="my-1 border-t border-slate-100"></div>
+                        </template>
+
                         <DropdownLink :href="route('profile.edit')">Profile</DropdownLink>
                         <DropdownLink :href="route('workspaces.create')">New workspace</DropdownLink>
                         <DropdownLink :href="route('logout')" method="post" as="button">Log out</DropdownLink>
