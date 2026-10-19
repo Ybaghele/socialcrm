@@ -79,5 +79,14 @@ return [
         'default_range' => (int) env('OMNIFLOW_ANALYTICS_DAYS', 30),
     ],
 
+    // Automation guardrails. The cooldown stops a broad auto-reply rule (one with
+    // no keywords) turning a chatty customer into a reply storm; the batches keep
+    // one scheduler tick bounded.
+    'automations' => [
+        'reply_cooldown_minutes' => (int) env('OMNIFLOW_AUTOMATION_COOLDOWN_MINUTES', 60),
+        'enrol_batch' => (int) env('OMNIFLOW_AUTOMATION_ENROL_BATCH', 200),
+        'send_batch' => (int) env('OMNIFLOW_AUTOMATION_SEND_BATCH', 50),
+    ],
+
     'max_text_length' => ['whatsapp' => 4096, 'instagram' => 1000, 'messenger' => 1000], // IG/Messenger values are conservative
 ];

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AutomationController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\ChannelController;
@@ -127,6 +128,14 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         Route::post('/segments', [SegmentController::class, 'store'])->name('segments.store');
         Route::patch('/segments/{segment}', [SegmentController::class, 'update'])->name('segments.update');
         Route::delete('/segments/{segment}', [SegmentController::class, 'destroy'])->name('segments.destroy');
+
+        // Automations: keyword auto-replies, routing rules and follow-up sequences.
+        Route::get('/automations', [AutomationController::class, 'index'])->name('automations.index');
+        Route::post('/automations/business-hours', [AutomationController::class, 'businessHours'])->name('automations.business-hours');
+        Route::post('/automations', [AutomationController::class, 'store'])->name('automations.store');
+        Route::patch('/automations/{automation}', [AutomationController::class, 'update'])->name('automations.update');
+        Route::post('/automations/{automation}/toggle', [AutomationController::class, 'toggle'])->name('automations.toggle');
+        Route::delete('/automations/{automation}', [AutomationController::class, 'destroy'])->name('automations.destroy');
 
         // Analytics + the notification centre behind the header bell.
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');

@@ -16,11 +16,13 @@ use App\Models\ContactChannelIdentity;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Workspace;
+use App\Services\Automations\AutomationEngine;
 use App\Services\Billing\PlanLimits;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * The only place that turns an inbound provider event into contact + conversation + message.
@@ -29,8 +31,11 @@ use Illuminate\Support\Str;
  */
 final class InboundMessageProcessor
 {
-    public function __construct(private RoundRobinAssigner $router, private WalletService $wallet)
-    {
+    public function __construct(
+        private RoundRobinAssigner $router,
+        private WalletService $wallet,
+        private AutomationEngine $automations,
+    ) {
     }
 
     public function handle(InboundMessage $in): ?Message
@@ -171,6 +176,22 @@ final class InboundMessageProcessor
             preview: Str::limit($preview, 140),
             newContact: $isNewContact,
         ));
+
+        // Automation rules run last and inside this transaction: a routing rule can
+        // claim the thread before an auto-reply goes out. Swallowed on purpose — a
+        // misconfigured rule must never lose the customer's message.
+        try {
+            $this->automations->handleInbound(
+                $conversation,
+                $message,
+                Message::where('conversation_id', $conversation->id)->where('direction', MessageDirection::Inbound->value)->count() === 1,
+            );
+        } catch (Throwable $e) {
+            Log::warning('Automation engine failed', [
+                'conversation_id' => $conversation->id,
+                'reason' => $e->getMessage(),
+            ]);
+        }
 
         return $message;
     }

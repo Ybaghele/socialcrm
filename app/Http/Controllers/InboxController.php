@@ -221,7 +221,7 @@ class InboxController extends Controller
                 'body' => $message->body,
                 'type' => $message->type,
                 'status' => $message->status,
-                'author' => $message->author?->name,
+                'author' => $message->author?->name ?? ($message->sender_type === 'bot' ? 'Automation' : null),
                 'createdAt' => $message->created_at?->toIso8601String(),
                 'isInternal' => $message->direction === 'internal',
             ])

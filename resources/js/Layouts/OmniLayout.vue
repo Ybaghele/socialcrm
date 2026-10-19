@@ -58,6 +58,7 @@ const navItems = computed(() => {
         { label: 'Campaigns', icon: 'fa-solid fa-bullhorn', href: route('campaigns.index', { workspace: slug }), component: 'Campaigns', badge: navCounts.value.activeCampaigns ? `${navCounts.value.activeCampaigns} live` : null, badgeClass: 'bg-emerald-100 text-emerald-700' },
         { label: 'Templates', icon: 'fa-solid fa-file-lines', href: route('templates.index', { workspace: slug }), component: 'Templates', badge: null, badgeClass: '' },
         { label: 'Audiences', icon: 'fa-solid fa-filter', href: route('segments.index', { workspace: slug }), component: 'Segments', badge: null, badgeClass: '' },
+        { label: 'Automations', icon: 'fa-solid fa-bolt', href: route('automations.index', { workspace: slug }), component: 'Automations', badge: null, badgeClass: '' },
         ...(canManageTeam.value
             ? [{ label: 'Team', icon: 'fa-solid fa-users', href: route('members.index', { workspace: slug }), component: 'Members', badge: null, badgeClass: '' }]
             : []),

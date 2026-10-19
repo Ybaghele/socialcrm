@@ -32,7 +32,14 @@ class SendOutboundMessage
     {
     }
 
-    public function handle(Conversation $conversation, User $author, ?string $text = null, ?MessageTemplate $template = null, array $variables = []): Message
+    /**
+     * A null $author means the workspace itself is sending (an automation), which
+     * is recorded as a bot message with no user_id. Two things deliberately differ
+     * for a bot: it does not claim an unassigned thread, and it does not clear the
+     * unread badge or set first_response_at — an agent still needs to look at the
+     * thread, and "time to first human reply" must stay honest.
+     */
+    public function handle(Conversation $conversation, ?User $author, ?string $text = null, ?MessageTemplate $template = null, array $variables = []): Message
     {
         $channel = ChannelType::from($conversation->channel);
         $account = $conversation->channelAccount;
@@ -55,8 +62,8 @@ class SendOutboundMessage
             $message = Message::create([
                 'conversation_id' => $conversation->id,
                 'direction' => MessageDirection::Outbound->value,
-                'sender_type' => SenderType::User->value,
-                'user_id' => $author->id,
+                'sender_type' => $author ? SenderType::User->value : SenderType::Bot->value,
+                'user_id' => $author?->id,
                 'message_template_id' => $template?->id,
                 'type' => $type,
                 'body' => $body,
@@ -73,9 +80,9 @@ class SendOutboundMessage
             $conversation->forceFill([
                 'last_message_preview' => Str::limit($body, 140),
                 'last_message_at' => now(),
-                'first_response_at' => $conversation->first_response_at ?? now(),
-                'assigned_user_id' => $conversation->assigned_user_id ?? $author->id, // replying claims an unassigned thread
-                'unread_count' => 0,
+                'first_response_at' => $author ? ($conversation->first_response_at ?? now()) : $conversation->first_response_at,
+                'assigned_user_id' => $conversation->assigned_user_id ?? $author?->id, // replying claims an unassigned thread
+                'unread_count' => $author ? 0 : $conversation->unread_count,
             ])->save();
 
             return $message;
