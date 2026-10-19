@@ -6,9 +6,10 @@
 
         <title inertia>{{ config('app.name', 'SocialDesk') }}</title>
 
-        <!-- Branding -->
-        <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
-        <link rel="apple-touch-icon" href="{{ asset('images/app-icon.png') }}">
+        <!-- Branding. The ?v= timestamp busts long-lived CDN/browser caches
+             (Hostinger's hcdn serves images with max-age=604800) on every change. -->
+        <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ @filemtime(public_path('favicon.ico')) ?: 1 }}">
+        <link rel="apple-touch-icon" href="{{ asset('images/app-icon.png') }}?v={{ @filemtime(public_path('images/app-icon.png')) ?: 1 }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
