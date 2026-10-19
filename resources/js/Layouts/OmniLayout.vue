@@ -143,7 +143,7 @@ watch(
                 </button>
                 <div class="flex min-w-0 items-center gap-3">
                     <Link :href="route('dashboard')" class="flex items-center">
-                        <img src="/images/logo.png" alt="SocialDesk" class="h-10 w-auto max-w-[180px]" />
+                        <img src="/images/logo.png" alt="SocialDesk" class="h-10 w-auto" />
                     </Link>
                     <div class="hidden leading-tight sm:block">
                         <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Workspace</p>
@@ -272,7 +272,7 @@ watch(
 
             <div class="relative flex h-full w-4/5 max-w-xs flex-col bg-white shadow-2xl">
                 <div class="flex shrink-0 items-center justify-between border-b border-slate-100 p-4">
-                    <img src="/images/logo.png" alt="SocialDesk" class="h-9 w-auto max-w-[160px]" />
+                    <img src="/images/logo.png" alt="SocialDesk" class="h-10 w-auto" />
                     <button
                         type="button"
                         class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
