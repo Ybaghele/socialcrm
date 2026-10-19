@@ -43,7 +43,11 @@ class MetaWebhookController
         );
 
         if ($event->wasRecentlyCreated || $event->status === 'failed') {
-            ProcessMetaWebhook::dispatch($event->id);
+            // Process in this same request, after the reply has been flushed to Meta.
+            // Symfony's Response::send() calls litespeed_finish_request() (Hostinger) or
+            // fastcgi_finish_request(), so Meta still gets its instant 200 while the message
+            // no longer waits up to a minute for the once-a-minute queue worker.
+            ProcessMetaWebhook::dispatchAfterResponse($event->id);
         }
 
         return response('EVENT_RECEIVED', 200);
