@@ -96,5 +96,18 @@ const submit = () => {
                 </PrimaryButton>
             </div>
         </form>
+
+        <div class="mt-6 border-t border-slate-100 pt-5">
+            <p class="text-center text-xs font-medium text-slate-400">
+                New to SocialDesk?
+            </p>
+            <Link
+                :href="route('register')"
+                class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 py-2.5 text-sm font-bold text-brand-700 transition hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+            >
+                <i class="fa-solid fa-rocket text-xs"></i>
+                Register / Start Free Trial
+            </Link>
+        </div>
     </GuestLayout>
 </template>

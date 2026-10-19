@@ -38,6 +38,36 @@ const channelMeta = {
 
 const meta = (channel) => channelMeta[channel] ?? { label: channel, icon: 'fa-solid fa-comment', dot: 'bg-slate-400', text: 'text-slate-500' };
 
+// Primary navigation, shared by the desktop tab strip and the mobile drawer so
+// the two can never drift apart.
+const navItems = computed(() => {
+    const slug = workspace.value?.slug;
+
+    if (!slug) {
+        return [];
+    }
+
+    return [
+        { label: 'Unified Inbox', icon: 'fa-solid fa-inbox', href: route('inbox', { workspace: slug }), component: 'Inbox', badge: navCounts.value.unread || null, badgeClass: 'bg-brand-100 text-brand-700' },
+        { label: 'Lead CRM', icon: 'fa-solid fa-address-book', href: route('contacts.index', { workspace: slug }), component: 'Contacts', badge: navCounts.value.contacts || null, badgeClass: 'bg-slate-100 text-slate-500' },
+        { label: 'Campaigns', icon: 'fa-solid fa-bullhorn', href: route('campaigns.index', { workspace: slug }), component: 'Campaigns', badge: navCounts.value.activeCampaigns ? `${navCounts.value.activeCampaigns} live` : null, badgeClass: 'bg-emerald-100 text-emerald-700' },
+        { label: 'Templates', icon: 'fa-solid fa-file-lines', href: route('templates.index', { workspace: slug }), component: 'Templates', badge: null, badgeClass: '' },
+        { label: 'Billing', icon: 'fa-solid fa-wallet', href: route('billing', { workspace: slug }), component: 'Billing', badge: null, badgeClass: '' },
+        { label: 'Channels', icon: 'fa-solid fa-plug', href: route('channels.index', { workspace: slug }), component: 'Channels', badge: channels.value.length ? null : '!', badgeClass: 'bg-amber-100 text-amber-700' },
+    ];
+});
+
+const isActive = (component) => page.component === component;
+
+// The mobile drawer is a full-screen overlay; it must close on every navigation.
+const mobileNavOpen = ref(false);
+watch(
+    () => page.url,
+    () => {
+        mobileNavOpen.value = false;
+    },
+);
+
 const simulating = ref(false);
 
 function simulateInbound() {
@@ -97,15 +127,23 @@ watch(
 </script>
 
 <template>
-    <div class="flex h-screen flex-col overflow-hidden bg-slate-50 font-sans text-slate-800">
+    <div class="flex h-[100dvh] flex-col overflow-hidden bg-slate-50 font-sans text-slate-800">
         <!-- ---------------------------------------------------------- -->
         <!-- Top platform header                                         -->
         <!-- ---------------------------------------------------------- -->
         <header class="z-20 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm sm:px-6">
-            <div class="flex items-center gap-4 sm:gap-6">
-                <div class="flex items-center gap-3">
+            <div class="flex min-w-0 items-center gap-3 sm:gap-6">
+                <button
+                    type="button"
+                    class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 lg:hidden"
+                    aria-label="Open navigation"
+                    @click="mobileNavOpen = true"
+                >
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div class="flex min-w-0 items-center gap-3">
                     <Link :href="route('dashboard')" class="flex items-center">
-                        <img src="/images/logo.png" alt="SocialDesk" class="h-8 w-auto" />
+                        <img src="/images/logo.png" alt="SocialDesk" class="h-10 w-auto max-w-[180px]" />
                     </Link>
                     <div class="hidden leading-tight sm:block">
                         <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Workspace</p>
@@ -190,98 +228,26 @@ watch(
         <!-- ---------------------------------------------------------- -->
         <!-- Tab navigation strip                                        -->
         <!-- ---------------------------------------------------------- -->
-        <nav class="z-10 flex h-12 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6">
-            <div class="flex h-full items-center gap-1">
+        <nav class="z-10 hidden h-12 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6 lg:flex">
+            <div class="flex h-full min-w-0 items-center gap-1 overflow-x-auto">
                 <Link
-                    :href="route('inbox', { workspace: workspace?.slug })"
-                    class="flex h-full items-center gap-2 border-b-2 px-3 text-sm font-semibold transition"
+                    v-for="item in navItems"
+                    :key="item.component"
+                    :href="item.href"
+                    class="flex h-full shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition"
                     :class="
-                        $page.component === 'Inbox'
+                        isActive(item.component)
                             ? 'border-brand-600 text-brand-700'
                             : 'border-transparent text-slate-500 hover:text-slate-800'
                     "
                 >
-                    <i class="fa-solid fa-inbox text-xs"></i> Unified Inbox
+                    <i :class="item.icon" class="text-xs"></i> {{ item.label }}
                     <span
-                        v-if="navCounts.unread"
-                        class="rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-700"
+                        v-if="item.badge"
+                        class="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                        :class="item.badgeClass"
                     >
-                        {{ navCounts.unread }}
-                    </span>
-                </Link>
-
-                <Link
-                    :href="route('contacts.index', { workspace: workspace?.slug })"
-                    class="flex h-full items-center gap-2 border-b-2 px-3 text-sm font-semibold transition"
-                    :class="
-                        $page.component === 'Contacts'
-                            ? 'border-brand-600 text-brand-700'
-                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                    "
-                >
-                    <i class="fa-solid fa-address-book text-xs"></i> Lead CRM
-                    <span class="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
-                        {{ navCounts.contacts }}
-                    </span>
-                </Link>
-
-                <Link
-                    :href="route('campaigns.index', { workspace: workspace?.slug })"
-                    class="flex h-full items-center gap-2 border-b-2 px-3 text-sm font-semibold transition"
-                    :class="
-                        $page.component === 'Campaigns'
-                            ? 'border-brand-600 text-brand-700'
-                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                    "
-                >
-                    <i class="fa-solid fa-bullhorn text-xs"></i> Campaigns
-                    <span
-                        v-if="navCounts.activeCampaigns"
-                        class="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700"
-                    >
-                        {{ navCounts.activeCampaigns }} live
-                    </span>
-                </Link>
-
-                <Link
-                    :href="route('templates.index', { workspace: workspace?.slug })"
-                    class="flex h-full items-center gap-2 border-b-2 px-3 text-sm font-semibold transition"
-                    :class="
-                        $page.component === 'Templates'
-                            ? 'border-brand-600 text-brand-700'
-                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                    "
-                >
-                    <i class="fa-solid fa-file-lines text-xs"></i> Templates
-                </Link>
-
-                <Link
-                    :href="route('billing', { workspace: workspace?.slug })"
-                    class="flex h-full items-center gap-2 border-b-2 px-3 text-sm font-semibold transition"
-                    :class="
-                        $page.component === 'Billing'
-                            ? 'border-brand-600 text-brand-700'
-                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                    "
-                >
-                    <i class="fa-solid fa-wallet text-xs"></i> Billing
-                </Link>
-
-                <Link
-                    :href="route('channels.index', { workspace: workspace?.slug })"
-                    class="flex h-full items-center gap-2 border-b-2 px-3 text-sm font-semibold transition"
-                    :class="
-                        $page.component === 'Channels'
-                            ? 'border-brand-600 text-brand-700'
-                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                    "
-                >
-                    <i class="fa-solid fa-plug text-xs"></i> Channels
-                    <span
-                        v-if="!channels.length"
-                        class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700"
-                    >
-                        !
+                        {{ item.badge }}
                     </span>
                 </Link>
             </div>
@@ -289,7 +255,7 @@ watch(
             <button
                 v-if="canSimulateInbound"
                 type="button"
-                class="hidden items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-100 disabled:opacity-60 sm:inline-flex"
+                class="ml-3 inline-flex shrink-0 items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 transition hover:bg-brand-100 disabled:opacity-60"
                 :disabled="simulating"
                 @click="simulateInbound"
             >
@@ -299,6 +265,75 @@ watch(
         </nav>
 
         <!-- ---------------------------------------------------------- -->
+        <!-- Mobile navigation drawer                                    -->
+        <!-- ---------------------------------------------------------- -->
+        <div v-if="mobileNavOpen" class="fixed inset-0 z-40 lg:hidden">
+            <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="mobileNavOpen = false"></div>
+
+            <div class="relative flex h-full w-4/5 max-w-xs flex-col bg-white shadow-2xl">
+                <div class="flex shrink-0 items-center justify-between border-b border-slate-100 p-4">
+                    <img src="/images/logo.png" alt="SocialDesk" class="h-9 w-auto max-w-[160px]" />
+                    <button
+                        type="button"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                        aria-label="Close navigation"
+                        @click="mobileNavOpen = false"
+                    >
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
+                    <Link
+                        v-for="item in navItems"
+                        :key="item.component"
+                        :href="item.href"
+                        class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition"
+                        :class="
+                            isActive(item.component)
+                                ? 'bg-brand-50 text-brand-700'
+                                : 'text-slate-600 hover:bg-slate-50'
+                        "
+                        @click="mobileNavOpen = false"
+                    >
+                        <i :class="item.icon" class="w-5 text-center text-sm"></i>
+                        <span class="flex-1">{{ item.label }}</span>
+                        <span
+                            v-if="item.badge"
+                            class="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                            :class="item.badgeClass"
+                        >
+                            {{ item.badge }}
+                        </span>
+                    </Link>
+                </nav>
+
+                <div class="shrink-0 space-y-2 border-t border-slate-100 p-3">
+                    <p class="px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        {{ workspace?.name ?? 'Workspace' }}
+                    </p>
+                    <button
+                        v-if="canSimulateInbound"
+                        type="button"
+                        class="flex w-full items-center justify-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-bold text-brand-700 transition hover:bg-brand-100 disabled:opacity-60"
+                        :disabled="simulating"
+                        @click="simulateInbound"
+                    >
+                        <i class="fa-solid text-[11px]" :class="simulating ? 'fa-circle-notch fa-spin' : 'fa-play'"></i>
+                        {{ simulating ? 'Simulating…' : 'Simulate inbound' }}
+                    </button>
+                    <Link
+                        :href="route('profile.edit')"
+                        class="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                        @click="mobileNavOpen = false"
+                    >
+                        <i class="fa-solid fa-user-gear text-[11px]"></i> Account settings
+                    </Link>
+                </div>
+            </div>
+        </div>
+
+        <!-- ---------------------------------------------------------- -->
         <!-- Page content                                                -->
         <!-- ---------------------------------------------------------- -->
         <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -306,7 +341,7 @@ watch(
         </main>
 
         <!-- Toasts -->
-        <div class="pointer-events-none fixed right-4 top-20 z-50 flex w-80 flex-col gap-2">
+        <div class="pointer-events-none fixed left-4 right-4 top-20 z-50 flex flex-col gap-2 sm:left-auto sm:w-80">
             <transition-group
                 enter-active-class="transition duration-200 ease-out"
                 enter-from-class="translate-x-4 opacity-0"
