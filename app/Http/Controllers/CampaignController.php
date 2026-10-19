@@ -5,9 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Campaign;
 use App\Models\CampaignTrigger;
 use App\Models\ChannelAccount;
+use App\Models\Contact;
+use App\Models\MessageTemplate;
+use App\Jobs\Campaigns\ProcessCampaignEnrollments;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -57,6 +61,7 @@ class CampaignController extends Controller
             ->with([
                 'triggers:id,campaign_id,type,keywords',
                 'segment:id,name',
+                'template:id,name',
             ])
             ->orderByDesc('id')
             ->get()
@@ -85,6 +90,33 @@ class CampaignController extends Controller
                     'target' => $funnel['target'],
                 ])
                 ->values(),
+            // Everything the WhatsApp broadcast modal needs to render itself:
+            // which approved templates exist, which number would send them, and
+            // how many opted-in contacts the audience resolves to.
+            'broadcast' => [
+                'templates' => MessageTemplate::query()
+                    ->where('status', 'approved')
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn (MessageTemplate $template) => [
+                        'id' => $template->id,
+                        'name' => $template->name,
+                        'language' => $template->language,
+                        'category' => $template->category,
+                        'body' => $template->bodyText(),
+                        'variables' => $template->placeholderCount(),
+                        'channelAccountId' => $template->channel_account_id,
+                    ])
+                    ->all(),
+                'accounts' => ChannelAccount::query()
+                    ->where('channel', 'whatsapp')
+                    ->where('status', 'connected')
+                    ->get(['id', 'name'])
+                    ->map(fn (ChannelAccount $account) => ['id' => $account->id, 'name' => $account->name])
+                    ->all(),
+                'optedInCount' => Contact::query()->where('is_opted_in', true)->count(),
+                'pendingTemplates' => MessageTemplate::query()->whereIn('status', ['pending', 'in_review'])->count(),
+            ],
         ]);
     }
 
@@ -93,11 +125,26 @@ class CampaignController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'funnel' => ['required', Rule::in(array_keys(self::FUNNELS))],
-            'message' => ['required', 'string', 'max:2000'],
+            'message' => ['nullable', 'string', 'max:2000'],
             'keywords' => ['nullable', 'string', 'max:300'],
+            // WhatsApp broadcast extras.
+            'template_id' => ['nullable', 'integer'],
+            'template_variables' => ['nullable', 'array'],
+            'template_variables.*' => ['nullable', 'string', 'max:500'],
+            'channel_account_id' => ['nullable', 'integer'],
         ]);
 
         $funnel = self::FUNNELS[$data['funnel']];
+
+        if ($funnel['type'] === 'broadcast') {
+            return $this->storeBroadcast($request, $data, $funnel);
+        }
+
+        if (trim((string) ($data['message'] ?? '')) === '') {
+            throw ValidationException::withMessages([
+                'message' => 'Write the message this funnel should send.',
+            ]);
+        }
 
         $campaign = Campaign::create([
             'name' => $data['name'],
@@ -135,6 +182,68 @@ class CampaignController extends Controller
         return back()->with('success', "Campaign “{$campaign->name}” is live.");
     }
 
+    /**
+     * A WhatsApp broadcast is a template send to the opted-in audience. It has to
+     * carry an approved template (Meta rejects free-form bulk messages), so this
+     * path validates the template, snapshots its variable values and lets the
+     * scheduled `campaigns:process` command enroll + deliver.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<string, string>  $funnel
+     */
+    private function storeBroadcast(Request $request, array $data, array $funnel): RedirectResponse
+    {
+        $template = MessageTemplate::query()->find($data['template_id'] ?? 0);
+
+        if (! $template || $template->status !== 'approved') {
+            throw ValidationException::withMessages([
+                'template_id' => 'Pick a template Meta has approved. Sync Templates if yours is missing.',
+            ]);
+        }
+
+        $accountId = $data['channel_account_id'] ?? $template->channel_account_id;
+        $account = ChannelAccount::query()
+            ->whereKey($accountId)
+            ->where('channel', 'whatsapp')
+            ->where('status', 'connected')
+            ->first();
+
+        if (! $account || $account->id !== $template->channel_account_id) {
+            throw ValidationException::withMessages([
+                'channel_account_id' => 'That template belongs to a different WhatsApp number. Reconnect it on Channels.',
+            ]);
+        }
+
+        // Pad/trim the operator's values so the count always matches the template.
+        $expected = $template->placeholderCount();
+        $variables = array_slice(array_pad(array_values($data['template_variables'] ?? []), $expected, ''), 0, $expected);
+
+        $campaign = Campaign::create([
+            'name' => $data['name'],
+            'description' => $this->describe('broadcast'),
+            'type' => 'broadcast',
+            'channel' => 'whatsapp',
+            'status' => 'active',
+            'message_body' => $template->bodyText(),
+            'audience_description' => ['label' => $funnel['target']],
+            'started_at' => now(),
+            'created_by' => $request->user()->id,
+            'channel_account_id' => $account->id,
+            'message_template_id' => $template->id,
+            'template_variables' => $variables,
+        ]);
+
+        // Enroll + start delivering right away (and keep going on the schedule).
+        ProcessCampaignEnrollments::dispatch()->afterCommit();
+
+        $audience = Contact::query()->where('is_opted_in', true)->count();
+
+        return back()->with(
+            'success',
+            "“{$campaign->name}” is live and enrolling {$audience} opted-in contact".($audience === 1 ? '' : 's').'.',
+        );
+    }
+
     public function update(Request $request, string $workspace, Campaign $campaign): RedirectResponse
     {
         $data = $request->validate([
@@ -168,6 +277,8 @@ class CampaignController extends Controller
             'status' => $campaign->status,
             'trigger' => $this->triggerLabel($campaign),
             'target' => $campaign->audience_description['label'] ?? $campaign->segment?->name ?? 'All contacts',
+            'template' => $campaign->template?->name,
+            'enrolled' => (int) $campaign->enrolled_count,
             'delivered' => (int) $campaign->delivered_count,
             'replied' => (int) $campaign->replied_count,
             'replyRate' => $campaign->reply_rate,

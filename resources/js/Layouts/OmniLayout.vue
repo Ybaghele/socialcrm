@@ -244,6 +244,18 @@ watch(
                 </Link>
 
                 <Link
+                    :href="route('templates.index', { workspace: workspace?.slug })"
+                    class="flex h-full items-center gap-2 border-b-2 px-3 text-sm font-semibold transition"
+                    :class="
+                        $page.component === 'Templates'
+                            ? 'border-brand-600 text-brand-700'
+                            : 'border-transparent text-slate-500 hover:text-slate-800'
+                    "
+                >
+                    <i class="fa-solid fa-file-lines text-xs"></i> Templates
+                </Link>
+
+                <Link
                     :href="route('billing', { workspace: workspace?.slug })"
                     class="flex h-full items-center gap-2 border-b-2 px-3 text-sm font-semibold transition"
                     :class="

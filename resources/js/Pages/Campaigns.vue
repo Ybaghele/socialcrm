@@ -1,6 +1,6 @@
 <script setup>
-import { computed, inject, ref } from 'vue';
-import { router, useForm, usePage } from '@inertiajs/vue3';
+import { computed, inject, ref, watch } from 'vue';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { route } from '@ziggy';
 import OmniLayout from '@/Layouts/OmniLayout.vue';
 
@@ -8,6 +8,12 @@ const props = defineProps({
     campaigns: { type: Array, required: true },
     stats: { type: Object, required: true },
     funnels: { type: Array, required: true },
+    // Approved templates + opted-in audience size for the WhatsApp broadcast modal.
+    broadcast: {
+        type: Object,
+        required: false,
+        default: () => ({ templates: [], accounts: [], optedInCount: 0, pendingTemplates: 0 }),
+    },
 });
 const page = usePage();
 const toast = inject('toast', () => {});
@@ -20,14 +26,71 @@ const form = useForm({
     funnel: 'instagram_comment',
     message: '',
     keywords: '',
+    template_id: null,
+    template_variables: [],
+    channel_account_id: null,
 });
 
 // Funnel types whose trigger is a keyword — the modal only asks for keywords then.
 const isKeywordFunnel = computed(() => form.funnel === 'instagram_comment');
+// WhatsApp broadcast: template-driven, needs an approved template + audience.
+const isBroadcast = computed(() => form.funnel === 'whatsapp_broadcast');
+
+const approvedTemplates = computed(() => props.broadcast.templates ?? []);
+const selectedTemplate = computed(
+    () => approvedTemplates.value.find((template) => template.id === form.template_id) ?? null,
+);
+
+const sendingAccount = computed(() => {
+    const template = selectedTemplate.value;
+    if (!template) return null;
+
+    return (props.broadcast.accounts ?? []).find((account) => account.id === template.channelAccountId) ?? null;
+});
+
+// When the operator picks a template, size the variable inputs to its {{n}} count.
+watch(selectedTemplate, (template) => {
+    if (!template) {
+        form.template_variables = [];
+
+        return;
+    }
+
+    const current = Array.isArray(form.template_variables) ? form.template_variables : [];
+    form.template_variables = Array.from({ length: template.variables }, (_, index) => current[index] ?? '');
+    form.channel_account_id = template.channelAccountId;
+});
+
+// Live preview: show merge tags where a value has been typed.
+const templatePreview = computed(() => {
+    const template = selectedTemplate.value;
+    if (!template) return '';
+
+    return template.body.replace(/\{\{(\d+)\}\}/g, (match, n) => {
+        const value = form.template_variables[Number(n) - 1];
+
+        return value && String(value).trim() ? value : `{{${n}}}`;
+    });
+});
+
+const mergeTags = ['{{first_name}}', '{{name}}', '{{phone}}', '{{city}}'];
+
+// "{{1}}" for a zero-based variable index — the label on each input.
+function token(index) {
+    return `{{${index + 1}}}`;
+}
 
 function openModal() {
     form.clearErrors();
+    form.reset();
+    form.template_variables = [];
     showModal.value = true;
+}
+
+function insertTag(index, tag) {
+    const values = [...form.template_variables];
+    values[index] = (values[index] ?? '') + tag;
+    form.template_variables = values;
 }
 
 function submit() {
@@ -156,11 +219,22 @@ function setStatus(campaign, next) {
                                         <span>Trigger: <strong class="text-slate-700">{{ campaign.trigger }}</strong></span>
                                         <span>•</span>
                                         <span>Target: <strong class="text-slate-700">{{ campaign.target }}</strong></span>
+                                        <template v-if="campaign.template">
+                                            <span>•</span>
+                                            <span>
+                                                Template:
+                                                <strong class="font-mono text-slate-700">{{ campaign.template }}</strong>
+                                            </span>
+                                        </template>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="flex shrink-0 items-center gap-6 border-t border-slate-100 pt-2 text-xs md:border-t-0 md:pt-0">
+                                <div v-if="campaign.enrolled">
+                                    <div class="text-[10px] font-bold uppercase text-slate-400">Enrolled</div>
+                                    <div class="text-sm font-bold text-slate-800">{{ campaign.enrolled.toLocaleString() }}</div>
+                                </div>
                                 <div>
                                     <div class="text-[10px] font-bold uppercase text-slate-400">Delivered</div>
                                     <div class="text-sm font-bold text-slate-800">{{ campaign.delivered.toLocaleString() }}</div>
@@ -262,7 +336,92 @@ function setStatus(campaign, next) {
                         <p v-if="form.errors.keywords" class="mt-1 text-[11px] text-rose-600">{{ form.errors.keywords }}</p>
                     </div>
 
-                    <div>
+                    <!-- WhatsApp broadcast: pick an approved template + audience -->
+                    <template v-if="isBroadcast">
+                        <div v-if="!approvedTemplates.length" class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-800">
+                            <p class="flex items-center gap-1.5 font-semibold">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                No approved template yet
+                            </p>
+                            <p class="mt-1 leading-relaxed">
+                                <template v-if="broadcast.pendingTemplates">
+                                    You have {{ broadcast.pendingTemplates }} template(s) still in review at Meta. A broadcast can only
+                                    use an approved one.
+                                </template>
+                                <template v-else>
+                                    Create a template in Meta Business Manager, then sync it here.
+                                </template>
+                                <Link :href="route('templates.index', { workspace: workspaceSlug })" class="font-semibold underline">
+                                    Open Templates
+                                </Link>
+                            </p>
+                        </div>
+
+                        <template v-else>
+                            <div>
+                                <label class="mb-1 block font-semibold text-slate-700">Approved Template</label>
+                                <select
+                                    v-model="form.template_id"
+                                    class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                                >
+                                    <option :value="null" disabled>Choose an approved template…</option>
+                                    <option v-for="template in approvedTemplates" :key="template.id" :value="template.id">
+                                        {{ template.name }} · {{ template.language }} · {{ template.category }}
+                                    </option>
+                                </select>
+                                <p v-if="form.errors.template_id" class="mt-1 text-[11px] text-rose-600">{{ form.errors.template_id }}</p>
+                                <p v-if="sendingAccount" class="mt-1 text-[11px] text-slate-400">
+                                    Sends from <strong class="text-slate-600">{{ sendingAccount.name }}</strong>
+                                </p>
+                            </div>
+
+                            <div v-if="selectedTemplate" class="space-y-2">
+                                <div v-for="(value, index) in form.template_variables" :key="index">
+                                    <label class="mb-1 block font-semibold text-slate-700">
+                                        Variable {{ Number(index) + 1 }}
+                                        <span class="font-normal text-slate-400">({{ token(Number(index)) }})</span>
+                                    </label>
+                                    <input
+                                        v-model="form.template_variables[index]"
+                                        type="text"
+                                        :placeholder="index === 0 ? 'e.g., {{first_name}} or a fixed value' : 'Value or merge tag'"
+                                        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                                    />
+                                    <div class="mt-1 flex flex-wrap gap-1">
+                                        <button
+                                            v-for="tag in mergeTags"
+                                            :key="tag"
+                                            type="button"
+                                            class="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 transition hover:bg-slate-100"
+                                            @click="insertTag(Number(index), tag)"
+                                        >
+                                            {{ tag }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <p v-if="form.errors.channel_account_id" class="text-[11px] text-rose-600">
+                                    {{ form.errors.channel_account_id }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label class="mb-1 block font-semibold text-slate-700">Preview</label>
+                                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
+                                    <p class="whitespace-pre-line">{{ templatePreview || 'Select a template to preview it.' }}</p>
+                                </div>
+                            </div>
+
+                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-500">
+                                <i class="fa-solid fa-users mr-1 text-brand-600"></i>
+                                <strong class="text-slate-700">Audience:</strong> all opted-in subscribers
+                                ({{ broadcast.optedInCount.toLocaleString() }} contact{{ broadcast.optedInCount === 1 ? '' : 's' }}).
+                                Each send is charged to your wallet.
+                            </div>
+                        </template>
+                    </template>
+
+                    <!-- Comment-to-DM / ad-click funnels: free-form message -->
+                    <div v-else>
                         <label class="mb-1 block font-semibold text-slate-700">Message Content / Template</label>
                         <textarea
                             v-model="form.message"
@@ -273,9 +432,13 @@ function setStatus(campaign, next) {
                         <p v-if="form.errors.message" class="mt-1 text-[11px] text-rose-600">{{ form.errors.message }}</p>
                     </div>
 
-                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-500">
+                    <div v-if="!isBroadcast" class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-500">
                         <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>
                         Compliance Guard: automatically respects Meta's official 24-hour service window guidelines.
+                    </div>
+                    <div v-else class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-500">
+                        <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>
+                        Only Meta-approved templates can be broadcast, and only opted-in contacts are enrolled.
                     </div>
 
                     <div class="flex items-center justify-end gap-2 pt-2">
@@ -289,7 +452,7 @@ function setStatus(campaign, next) {
                         <button
                             type="submit"
                             class="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
-                            :disabled="form.processing"
+                            :disabled="form.processing || (isBroadcast && (!form.template_id || !approvedTemplates.length))"
                         >
                             <i class="fa-solid" :class="form.processing ? 'fa-circle-notch fa-spin' : 'fa-rocket'"></i>
                             Launch Campaign

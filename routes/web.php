@@ -9,6 +9,7 @@ use App\Http\Controllers\ConversationMessageController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\MetaConnectController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\WorkspaceController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -65,6 +66,10 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         Route::get('/campaigns', [CampaignController::class, 'index'])->name('campaigns.index');
         Route::post('/campaigns', [CampaignController::class, 'store'])->name('campaigns.store');
         Route::patch('/campaigns/{campaign}', [CampaignController::class, 'update'])->name('campaigns.update');
+
+        // Approved WhatsApp templates (mirrored from Meta) that broadcasts can use.
+        Route::get('/templates', [TemplateController::class, 'index'])->name('templates.index');
+        Route::post('/templates/sync', [TemplateController::class, 'sync'])->name('templates.sync');
 
         // Connect the Meta assets the shared webhook routes inbound traffic to.
         Route::get('/channels', [ChannelController::class, 'index'])->name('channels.index');

@@ -51,5 +51,14 @@ return [
         'whatsapp_template_paise' => ['marketing' => 88, 'utility' => 30, 'authentication' => 30],
     ],
 
+    // Broadcasts ride the per-minute scheduler, so each tick does a bounded slice
+    // of work: enrol a chunk, then queue a chunk of sends. The hold parks an
+    // enrolment for a few minutes so a slow worker is not double-queued.
+    'campaigns' => [
+        'enroll_batch' => (int) env('OMNIFLOW_CAMPAIGN_ENROLL_BATCH', 500),
+        'send_batch' => (int) env('OMNIFLOW_CAMPAIGN_SEND_BATCH', 50),
+        'retry_after_minutes' => (int) env('OMNIFLOW_CAMPAIGN_HOLD_MINUTES', 15),
+    ],
+
     'max_text_length' => ['whatsapp' => 4096, 'instagram' => 1000, 'messenger' => 1000], // IG/Messenger values are conservative
 ];

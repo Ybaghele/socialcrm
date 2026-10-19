@@ -14,6 +14,7 @@ class Campaign extends Model
     protected $guarded = [];
     protected $casts = [
         'audience_description' => 'array',
+        'template_variables' => 'array',
         'scheduled_at' => 'datetime', 'started_at' => 'datetime', 'ended_at' => 'datetime',
     ];
 
