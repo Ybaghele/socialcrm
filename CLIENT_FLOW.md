@@ -155,8 +155,9 @@ Step by step, in language you can use:
    thread to a specific person.
 6. **An agent sees it** in the Unified Inbox with an unread badge.
 
-> Because step 2 is queued, an inbound message can take up to about **a minute** to appear in
-> the inbox. See [§15](#15-current-limits--say-these-out-loud).
+> Inbound events are processed the moment the acknowledgement is flushed back to Meta, so a
+> message normally lands in the inbox within **a second or two**. Outbound replies are a
+> different story — see [§15](#15-current-limits--say-these-out-loud).
 
 ---
 
@@ -451,10 +452,13 @@ healthy. Everything else is on-demand.
 
 Better the client hears these from you now than discovers them later.
 
-1. **Timing.** Inbound and outbound work is queued and the worker ticks **once a minute**, so a
-   message can take up to about **60 seconds**. The inbox is not broken — it's batched. A
-   one-line change (processing the webhook after the response is flushed) brings this down to
-   **1–2 seconds**; it's ready to ship if the client wants it.
+1. **Timing.** *Inbound* is fast: a customer message is processed as soon as the acknowledgement
+   is flushed back to Meta, so it appears in the inbox within **a second or two**. *Outbound* is
+   the slower direction — an agent's reply, a broadcast send or a follow-up step is queued, and
+   the worker ticks **once a minute**, so it can take up to about **60 seconds** to leave. That is
+   a hosting cron setting rather than an app limit: running the worker continuously instead of
+   once a minute removes the delay entirely. Until that's changed, expect inbound to feel
+   instant and outbound to lag.
 2. **Self-service WhatsApp connection** needs **Meta Business Verification + App Review** before
    it can be offered to real customers. Until that's approved, channels are connected by pasting
    a token from Meta Business Manager — same end result, more clicking.
