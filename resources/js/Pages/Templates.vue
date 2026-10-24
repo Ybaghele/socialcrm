@@ -19,7 +19,7 @@ const workspaceRole = computed(() => page.props.workspaceRole);
 const syncing = ref(false);
 const showCreator = ref(false);
 
-const canCreate = computed(() => ['owner', 'admin'].includes(workspaceRole.value) && hasWhatsapp.value);
+const canCreate = computed(() => hasWhatsapp.value);
 
 function sync() {
     if (syncing.value) {
