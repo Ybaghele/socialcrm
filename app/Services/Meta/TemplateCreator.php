@@ -85,8 +85,7 @@ class TemplateCreator
                 $body['appsecret_proof'] = hash_hmac('sha256', $tokenForProof, $appSecret);
             }
         }
-        print_r($body);
-        exit;
+
         // Log the exact JSON payload being transmitted to spot formatting bugs
         Log::info('Sending Request Payload to Meta API Gateway', [
             'target_url' => $url,
@@ -156,11 +155,18 @@ class TemplateCreator
             $response = $e->response;
             $message = $response->json('error.message') ?? $response->json('message');
             
+            Log::info('Sending Request reason 1 to Meta API Gateway', [
+                'response' => $response,
+                'message' => $message
+            ]);
             if (is_string($message) && $message !== '') {
                 return $message;
             }
         }
 
+        Log::info('Sending Request reason 2 to Meta API Gateway', [
+            'message' => $e->getMessage()
+        ]);
         // Fall back to the default message string if no JSON context is available
         return Str::limit($e->getMessage(), 200);
     }
