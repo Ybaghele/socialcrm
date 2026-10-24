@@ -130,10 +130,10 @@ function buildComponents() {
 
 function validate() {
     const e = {};
-    if (!/^[a-z0-9_]+$/.test(name.value)) e.name = 'Invalid name';
+    if (!/^[a-z0-9_]+$/.test(name.value)) e.name = 'Invalid name (lowercase, numbers, underscores only)';
     if (!body.value.trim()) e.body = 'Body required';
     const nums = [...body.value.matchAll(/\{\{(\d+)\}\}/g)].map(m => parseInt(m[1])).sort((a, b) => a - b);
-    for (let i = 0; i < nums.length; i++) if (nums[i] !== i + 1) { e.vars = 'Variables must be sequential'; break; }
+    for (let i = 0; i < nums.length; i++) if (nums[i] !== i + 1) { e.vars = 'Variables must be sequential starting at {{1}}'; break; }
     if (!accountId.value) e.account = 'Select account';
     errors.value = e;
     return Object.keys(e).length === 0;
