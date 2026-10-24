@@ -53,7 +53,7 @@
                         </div>
                         <div class="flex justify-end gap-2">
                             <button type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs" @click="close">Cancel</button>
-                            <button type="submit" :disabled="submitting" class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60">{{ submitting ? 'Submitting...' : 'Submit to Meta' }}</button>
+                            <button type="submit" :disabled="submitting" class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60">{{ submitting ? 'Submitting....' : 'Submit to Meta' }}</button>
                         </div>
                     </form>
                 </div>
@@ -119,7 +119,6 @@ function buildComponents() {
     if (nums.length > 0) {
         // Create an array of dummy strings (e.g., ["John", "Monday"])
         const dummyExamples = nums.map(n => `Sample_Value_${n}`);
-        
         component.example = {
             body_text: dummyExamples // Note: Meta requires this to be an array inside an array
         };
