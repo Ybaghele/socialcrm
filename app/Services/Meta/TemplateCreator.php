@@ -85,7 +85,8 @@ class TemplateCreator
                 $body['appsecret_proof'] = hash_hmac('sha256', $tokenForProof, $appSecret);
             }
         }
-
+        print_r($body);
+        exit;
         // Log the exact JSON payload being transmitted to spot formatting bugs
         Log::info('Sending Request Payload to Meta API Gateway', [
             'target_url' => $url,
