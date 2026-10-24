@@ -3,6 +3,7 @@ import { computed, inject, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { route } from '@ziggy';
 import OmniLayout from '@/Layouts/OmniLayout.vue';
+import TemplateCreatorModal from '@/Components/Templates/TemplateCreatorModal.vue';
 
 const props = defineProps({
     templates: { type: Array, required: true },
@@ -13,8 +14,12 @@ const props = defineProps({
 const page = usePage();
 const toast = inject('toast', () => {});
 const workspaceSlug = computed(() => page.props.workspace?.slug);
+const workspaceRole = computed(() => page.props.workspaceRole);
 
 const syncing = ref(false);
+const showCreator = ref(false);
+
+const canCreate = computed(() => ['owner', 'admin'].includes(workspaceRole.value) && hasWhatsapp.value);
 
 function sync() {
     if (syncing.value) {
@@ -33,6 +38,13 @@ function sync() {
             },
         },
     );
+}
+
+function openCreator() {
+    if (!canCreate.value) {
+        return;
+    }
+    showCreator.value = true;
 }
 
 const statusMeta = {
@@ -57,19 +69,29 @@ const hasWhatsapp = computed(() => props.whatsappAccounts.length > 0);
                     <div>
                         <h2 class="text-xl font-bold text-slate-900">WhatsApp Message Templates</h2>
                         <p class="mt-1 max-w-2xl text-xs text-slate-500">
-                            Templates are written and approved inside Meta. Broadcasts can only use a template Meta has
-                            marked <strong>Approved</strong> — sync to refresh their status here.
+                            Create templates here and submit them to Meta for approval, or sync approved templates from Meta.
                         </p>
                     </div>
-                    <button
-                        type="button"
-                        class="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-60"
-                        :disabled="syncing || !hasWhatsapp"
-                        @click="sync"
-                    >
-                        <i class="fa-solid text-xs" :class="syncing ? 'fa-circle-notch fa-spin' : 'fa-rotate'"></i>
-                        <span>{{ syncing ? 'Syncing…' : 'Sync from Meta' }}</span>
-                    </button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="syncing || !hasWhatsapp"
+                            @click="sync"
+                        >
+                            <i class="fa-solid text-xs" :class="syncing ? 'fa-circle-notch fa-spin' : 'fa-rotate'"></i>
+                            <span>{{ syncing ? 'Syncing…' : 'Sync from Meta' }}</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            :disabled="!canCreate"
+                            @click="openCreator"
+                        >
+                            <i class="fa-solid fa-plus text-xs"></i>
+                            <span>Create template</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Not connected hint -->
