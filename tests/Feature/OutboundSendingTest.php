@@ -44,7 +44,6 @@ class OutboundSendingTest extends TestCase
         parent::setUp();
 
         config(['queue.default' => 'sync', 'omniflow.meta.graph_version' => 'v22.0']);
-        Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT1']]], 200)]);
 
         $this->author = User::factory()->create();
         $this->ws = Workspace::create(['name' => 'Acme', 'slug' => 'acme', 'owner_id' => $this->author->id]);
@@ -66,6 +65,16 @@ class OutboundSendingTest extends TestCase
         });
     }
 
+    /**
+     * Http::fake() appends stubs and the first matching one wins, so a catch-all
+     * fake in setUp() would shadow the per-test failure/Instagram stubs. Register
+     * the default success response only in the tests that actually send.
+     */
+    private function fakeWhatsAppSuccess(): void
+    {
+        Http::fake(['graph.facebook.com/*/messages*' => Http::response(['messages' => [['id' => 'wamid.OUT1']]], 200)]);
+    }
+
     private function send(?string $text = null, bool $withTemplate = false, array $vars = [], ?Conversation $conversation = null): Message
     {
         return Tenancy::run($this->ws, fn () => app(SendOutboundMessage::class)->handle(
@@ -85,6 +94,8 @@ class OutboundSendingTest extends TestCase
 
     public function test_free_text_inside_the_window_is_sent_and_free(): void
     {
+        $this->fakeWhatsAppSuccess();
+
         $message = $this->send('Yes, delivery is free');
 
         Tenancy::run($this->ws, function () use ($message) {
@@ -119,6 +130,7 @@ class OutboundSendingTest extends TestCase
 
     public function test_template_outside_the_window_is_sent_and_charged_with_a_ledger_line(): void
     {
+        $this->fakeWhatsAppSuccess();
         $this->closeWindow();
 
         $message = $this->send(withTemplate: true, vars: ['Ananya', '#1042']);
@@ -169,6 +181,8 @@ class OutboundSendingTest extends TestCase
 
     public function test_async_failed_receipt_from_meta_refunds_once_even_if_repeated(): void
     {
+        $this->fakeWhatsAppSuccess();
+
         $message = $this->send(withTemplate: true, vars: ['Ananya', '#1']);
         $this->assertSame(9912, $this->balance());
 
@@ -184,6 +198,8 @@ class OutboundSendingTest extends TestCase
 
     public function test_a_retried_job_never_resends_a_message_that_already_has_a_provider_id(): void
     {
+        $this->fakeWhatsAppSuccess();
+
         $message = $this->send('hi');
         Http::fake(); // reset recorded requests
 

@@ -101,6 +101,7 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
 
         // Approved WhatsApp templates (mirrored from Meta) that broadcasts can use.
         Route::get('/templates', [TemplateController::class, 'index'])->name('templates.index');
+        Route::post('/templates', [TemplateController::class, 'store'])->name('templates.store');
         Route::post('/templates/sync', [TemplateController::class, 'sync'])->name('templates.sync');
 
         // Connect the Meta assets the shared webhook routes inbound traffic to.
