@@ -110,7 +110,22 @@ function close() {
 }
 
 function buildComponents() {
-    return [{ type: 'BODY', text: body.value }];
+    const component = { type: 'BODY', text: body.value };
+    
+    // Find all variables, e.g., {{1}}, {{2}}
+    const nums = [...body.value.matchAll(/\{\{(\d+)\}\}/g)].map(m => parseInt(m[1])).sort((a, b) => a - b);
+    
+    // If variables exist, Meta strictly requires an example for each
+    if (nums.length > 0) {
+        // Create an array of dummy strings (e.g., ["John", "Monday"])
+        const dummyExamples = nums.map(n => `Sample_Value_${n}`);
+        
+        component.example = {
+            body_text: [dummyExamples] // Note: Meta requires this to be an array inside an array
+        };
+    }
+    
+    return [component];
 }
 
 function validate() {

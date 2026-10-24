@@ -120,6 +120,16 @@ class TemplateController extends Controller
 
         try {
             $meta = $creator->create($account, $payload);
+            
+            // Check if Meta rejected it without throwing a hard exception
+            if (isset($meta['status']) && $meta['status'] === 'failed') {
+                $errorMessage = $meta['error']['error']['message'] 
+                    ?? $meta['error']['message'] 
+                    ?? 'Unknown validation rejection from Meta API.';
+                    
+                return back()->with('error', 'Meta rejected this template: ' . $errorMessage);
+            }
+            
         } catch (ConnectionException $e) {
             return back()->with('error', 'Could not reach Meta: '.$e->getMessage());
         } catch (ValidationException $e) {
@@ -127,6 +137,7 @@ class TemplateController extends Controller
         } catch (\Throwable $e) {
             return back()->with('error', 'Meta rejected this template: '.$creator->reason($e));
         }
+
 
         MessageTemplate::create([
             'workspace_id' => $workspace->getKey(),

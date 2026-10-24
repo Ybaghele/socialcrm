@@ -185,5 +185,11 @@ const hasWhatsapp = computed(() => props.whatsappAccounts.length > 0);
                 </div>
             </div>
         </div>
+        <!-- Add this right before </OmniLayout> -->
+        <TemplateCreatorModal 
+            :show="showCreator" 
+            :whatsapp-accounts="whatsappAccounts"
+            @close="showCreator = false" 
+        />
     </OmniLayout>
 </template>
