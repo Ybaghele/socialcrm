@@ -31,6 +31,7 @@ class TemplateDefinition
         }
 
         $bodyVariables = $this->bodyVariables($body);
+        $this->assertBodyQuality($body, $bodyVariables);
 
         $components = [];
 
@@ -171,6 +172,51 @@ class TemplateDefinition
         }
 
         return $highest;
+    }
+
+    /**
+     * Meta blocks templates whose body starts or ends with a variable, and it
+     * rejects bodies without roughly two words of fixed text per variable.
+     * Catching both here avoids a failed round trip and a vague Meta rejection.
+     */
+    private function assertBodyQuality(string $body, int $variableCount): void
+    {
+        if ($variableCount === 0) {
+            return;
+        }
+
+        if (preg_match('/^\{\{\d+\}\}/', $body)) {
+            $this->invalid('body', 'A template body cannot start with a variable. Add fixed text before {{1}}.');
+        }
+
+        if (preg_match('/\{\{\d+\}\}$/', $body)) {
+            $this->invalid('body', 'A template body cannot end with a variable. Add fixed text after the last variable.');
+        }
+
+        $requiredWords = ($variableCount * 2) + 1;
+        $staticWords = $this->staticWordCount($body);
+
+        if ($staticWords < $requiredWords) {
+            $missing = $requiredWords - $staticWords;
+            $variableLabel = $variableCount === 1 ? 'variable' : 'variables';
+            $wordLabel = $missing === 1 ? 'word' : 'words';
+
+            $this->invalid(
+                'body',
+                "Meta needs at least {$requiredWords} fixed words for {$variableCount} {$variableLabel}. Add {$missing} more {$wordLabel} or remove a variable.",
+            );
+        }
+    }
+
+    private function staticWordCount(string $body): int
+    {
+        $staticText = (string) preg_replace('/\{\{\d+\}\}/', ' ', $body);
+        $words = preg_split('/\s+/u', trim($staticText)) ?: [];
+
+        return count(array_filter(
+            $words,
+            fn (string $word) => preg_match('/[\p{L}\p{N}]/u', $word) === 1,
+        ));
     }
 
     private function rejectVariables(string $field, string $value, string $message): void

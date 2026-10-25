@@ -78,6 +78,10 @@
                                 <p class="text-slate-400">Variables must be sequential, starting with the first placeholder.</p>
                                 <span class="shrink-0 tabular-nums" :class="body.length > 1024 ? 'text-rose-600' : 'text-slate-400'">{{ body.length }}/1024</span>
                             </div>
+                            <p v-if="bodyRuleError" class="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
+                                <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                                <span>{{ bodyRuleError }}</span>
+                            </p>
                         </section>
 
                         <section class="rounded-xl border border-slate-200 p-4">
@@ -221,6 +225,39 @@ const variableCount = computed(() => {
     return numbers.length ? Math.max(...numbers) : 0;
 });
 
+const staticWordCount = computed(() => {
+    const staticText = body.value.replace(/\{\{\d+\}\}/g, ' ');
+    return staticText.trim().split(/\s+/).filter((word) => /[\p{L}\p{N}]/u.test(word)).length;
+});
+
+const bodyRuleError = computed(() => {
+    const trimmed = body.value.trim();
+
+    if (!trimmed || variableCount.value === 0) {
+        return '';
+    }
+
+    if (/^\{\{\d+\}\}/.test(trimmed)) {
+        return 'A template body cannot start with a variable. Add fixed text before {{1}}.';
+    }
+
+    if (/\{\{\d+\}\}$/.test(trimmed)) {
+        return 'A template body cannot end with a variable. Add fixed text after the last variable.';
+    }
+
+    const requiredWords = variableCount.value * 2 + 1;
+
+    if (staticWordCount.value < requiredWords) {
+        const missing = requiredWords - staticWordCount.value;
+        const variableLabel = variableCount.value === 1 ? 'variable' : 'variables';
+        const wordLabel = missing === 1 ? 'word' : 'words';
+
+        return `Meta needs at least ${requiredWords} fixed words for ${variableCount.value} ${variableLabel}. Add ${missing} more ${wordLabel} or remove a variable.`;
+    }
+
+    return '';
+});
+
 const orderedButtons = computed(() => [
     ...buttons.value.filter((button) => button.type === 'QUICK_REPLY'),
     ...buttons.value.filter((button) => button.type !== 'QUICK_REPLY'),
@@ -347,6 +384,8 @@ function validate() {
         nextErrors.body = 'A message body is required.';
     } else if (body.value.length > 1024) {
         nextErrors.body = 'The body cannot be longer than 1,024 characters.';
+    } else if (bodyRuleError.value) {
+        nextErrors.body = bodyRuleError.value;
     }
 
     for (let index = 0; index < numbers.length; index++) {

@@ -65,7 +65,7 @@ class TemplateCreationTest extends TestCase
             'category' => 'marketing',
             'language' => 'en_US',
             'header_text' => null,
-            'body' => 'Hi {{1}}, enjoy {{2}} off.',
+            'body' => 'Hi {{1}}, enjoy a flat {{2}} off your next order.',
             'footer_text' => null,
             'buttons' => [],
         ];
@@ -137,7 +137,7 @@ class TemplateCreationTest extends TestCase
                 ['type' => 'HEADER', 'format' => 'TEXT', 'text' => 'Diwali special'],
                 [
                     'type' => 'BODY',
-                    'text' => 'Hi {{1}}, enjoy {{2}} off.',
+                    'text' => 'Hi {{1}}, enjoy a flat {{2}} off your next order.',
                     'example' => ['body_text' => [['Sample 1', 'Sample 2']]],
                 ],
                 ['type' => 'FOOTER', 'text' => 'Reply STOP to opt out'],
@@ -169,6 +169,58 @@ class TemplateCreationTest extends TestCase
 
         Http::assertNothingSent();
         Tenancy::run($this->workspace, fn () => $this->assertSame(0, MessageTemplate::count()));
+    }
+
+    public function test_a_body_with_too_few_fixed_words_is_rejected_before_calling_meta(): void
+    {
+        Http::fake();
+
+        $payload = $this->payload();
+        $payload['body'] = 'Hi {{1}}, enjoy {{2}} off.';
+
+        $this->actingAs($this->owner)
+            ->post('/w/acme/templates', $payload)
+            ->assertRedirect()
+            ->assertSessionHasErrors([
+                'body' => 'Meta needs at least 5 fixed words for 2 variables. Add 2 more words or remove a variable.',
+            ]);
+
+        Http::assertNothingSent();
+        Tenancy::run($this->workspace, fn () => $this->assertSame(0, MessageTemplate::count()));
+    }
+
+    public function test_a_body_cannot_start_with_a_variable(): void
+    {
+        Http::fake();
+
+        $payload = $this->payload();
+        $payload['body'] = '{{1}}, your order is ready for pickup.';
+
+        $this->actingAs($this->owner)
+            ->post('/w/acme/templates', $payload)
+            ->assertRedirect()
+            ->assertSessionHasErrors([
+                'body' => 'A template body cannot start with a variable. Add fixed text before {{1}}.',
+            ]);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_a_body_cannot_end_with_a_variable(): void
+    {
+        Http::fake();
+
+        $payload = $this->payload();
+        $payload['body'] = 'Hi {{1}}, your order is ready {{2}}';
+
+        $this->actingAs($this->owner)
+            ->post('/w/acme/templates', $payload)
+            ->assertRedirect()
+            ->assertSessionHasErrors([
+                'body' => 'A template body cannot end with a variable. Add fixed text after the last variable.',
+            ]);
+
+        Http::assertNothingSent();
     }
 
     public function test_variables_outside_the_body_are_rejected(): void
