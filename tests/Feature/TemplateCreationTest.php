@@ -206,12 +206,12 @@ class TemplateCreationTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_a_body_cannot_end_with_a_variable(): void
+    public function test_a_body_cannot_end_with_a_variable_even_before_punctuation(): void
     {
         Http::fake();
 
         $payload = $this->payload();
-        $payload['body'] = 'Hi {{1}}, your order is ready {{2}}';
+        $payload['body'] = 'Hi {{1}}, your order is ready {{2}}.';
 
         $this->actingAs($this->owner)
             ->post('/w/acme/templates', $payload)

@@ -189,7 +189,11 @@ class TemplateDefinition
             $this->invalid('body', 'A template body cannot start with a variable. Add fixed text before {{1}}.');
         }
 
-        if (preg_match('/\{\{\d+\}\}$/', $body)) {
+        // Meta treats a trailing variable followed only by punctuation as a
+        // dangling parameter too, so "Thanks {{1}}." is not enough.
+        $bodyWithoutTrailingPunctuation = (string) preg_replace('/[^\p{L}\p{N}\}]+$/u', '', $body);
+
+        if (preg_match('/\{\{\d+\}\}$/', $bodyWithoutTrailingPunctuation)) {
             $this->invalid('body', 'A template body cannot end with a variable. Add fixed text after the last variable.');
         }
 

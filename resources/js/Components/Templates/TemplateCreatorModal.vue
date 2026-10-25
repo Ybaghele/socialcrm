@@ -241,7 +241,9 @@ const bodyRuleError = computed(() => {
         return 'A template body cannot start with a variable. Add fixed text before {{1}}.';
     }
 
-    if (/\{\{\d+\}\}$/.test(trimmed)) {
+    const bodyWithoutTrailingPunctuation = trimmed.replace(/[^\p{L}\p{N}}]+$/u, '');
+
+    if (/\{\{\d+\}\}$/.test(bodyWithoutTrailingPunctuation)) {
         return 'A template body cannot end with a variable. Add fixed text after the last variable.';
     }
 
