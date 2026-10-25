@@ -121,7 +121,7 @@ function buildComponents() {
         // Create an array of dummy strings (e.g., ["John", "Monday"])
         const dummyExamples = nums.map(n => `Sample_Value_${n}`);
         component.example = {
-            body_text: dummyExamples // Note: Meta requires this to be an array inside an array
+            body_text: [dummyExamples]
         };
     }
     

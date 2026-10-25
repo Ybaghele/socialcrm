@@ -65,9 +65,12 @@ class TemplateCreator
             throw new \InvalidArgumentException('No access token configured for this channel.');
         }
 
-        // Make sure this points to the right config or falls back safely to ://facebook.com
-        $base = rtrim((string) config('omniflow.meta.hosts.whatsapp', 'https://://facebook.com'), '/');
-        $version = trim((string) config('omniflow.meta.graph_version', 'v21.0'), '/');
+        // Make sure this points to the right config or falls back safely
+        $base = rtrim((string) config('omniflow.meta.hosts.whatsapp', 'https://graph.facebook.com'), '/');
+        if ($base === 'https://' || $base === 'http://') {
+            $base = 'https://graph.facebook.com';
+        }
+        $version = trim((string) config('omniflow.meta.graph_version', config('omniflow.meta.graph_version', 'v22.0')), '/');
         $url = "{$base}/{$version}/{$account->business_account_id}/message_templates";
 
         $body = [
@@ -79,11 +82,9 @@ class TemplateCreator
         ];
 
         $appSecret = config('services.meta.app_secret') ?? config('omniflow.meta.app_secret') ?? env('META_APP_SECRET');
-        if (is_string($appSecret) && $appSecret !== '') {
-            $tokenForProof = $account->access_token ? ChannelAccount::normaliseToken($account->access_token) : null;
-            if ($tokenForProof) {
-                $body['appsecret_proof'] = hash_hmac('sha256', $tokenForProof, $appSecret);
-            }
+        $token = ChannelAccount::normaliseToken($account->access_token);
+        if (is_string($appSecret) && $appSecret !== '' && $token) {
+            $body['appsecret_proof'] = hash_hmac('sha256', $token, $appSecret);
         }
 
         // Log the exact JSON payload being transmitted to spot formatting bugs
@@ -93,8 +94,9 @@ class TemplateCreator
         ]);
 
         try {
+            $token = ChannelAccount::normaliseToken($account->access_token);
             // Execute request without chaining ->throw() to bypass cryptographic crash limits
-            $response = Http::withToken($account->access_token)
+            $response = Http::withToken($token)
                 ->timeout(30)
                 ->post($url, $body);
 
