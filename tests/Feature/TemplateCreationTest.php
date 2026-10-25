@@ -161,7 +161,7 @@ class TemplateCreationTest extends TestCase
         Storage::fake('public');
 
         Http::fake([
-            'graph.facebook.com/v22.0/APP1/uploads*' => Http::response(['id' => 'upload:session-1'], 200),
+            'graph.facebook.com/v22.0/APP1/uploads*' => Http::response(['id' => 'upload:session-1?sig=abc'], 200),
             'graph.facebook.com/v22.0/upload:session-1*' => Http::response(['h' => '4::sample'], 200),
             'graph.facebook.com/*/message_templates' => Http::response([
                 'id' => '123', 'status' => 'PENDING',
@@ -189,7 +189,7 @@ class TemplateCreationTest extends TestCase
         Http::assertSent(fn ($request) => str_contains($request->url(), '/APP1/uploads')
             && $request['file_type'] === 'image/jpeg');
 
-        Http::assertSent(fn ($request) => str_contains($request->url(), '/upload:session-1')
+        Http::assertSent(fn ($request) => $request->url() === 'https://graph.facebook.com/v22.0/upload:session-1?sig=abc'
             && $request->hasHeader('file_offset', '0'));
 
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/message_templates')
@@ -224,7 +224,7 @@ class TemplateCreationTest extends TestCase
         Storage::fake('public');
 
         Http::fake([
-            'graph.facebook.com/v22.0/APP1/uploads*' => Http::response(['id' => 'upload:session-1'], 200),
+            'graph.facebook.com/v22.0/APP1/uploads*' => Http::response(['id' => 'upload:session-1?sig=abc'], 200),
             'graph.facebook.com/v22.0/upload:session-1*' => Http::response(['h' => '4::sample'], 200),
             'graph.facebook.com/*/message_templates' => Http::response([
                 'error' => ['message' => 'Invalid parameter', 'error_user_msg' => 'The sample image was rejected.'],

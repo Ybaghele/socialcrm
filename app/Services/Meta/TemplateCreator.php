@@ -214,21 +214,13 @@ class TemplateCreator
             throw new \InvalidArgumentException('No access token configured for this channel.');
         }
 
-        $proof = $this->appSecretProof($token);
-
-        $params = [
-            'file_name' => basename($fileName),
-            'file_length' => $length,
-            'file_type' => $mimeType,
-        ];
-
-        if ($proof !== null) {
-            $params['appsecret_proof'] = $proof;
-        }
-
         $session = Http::withToken($token)
             ->timeout(30)
-            ->post("{$base}/{$version}/{$appId}/uploads", $params)
+            ->post("{$base}/{$version}/{$appId}/uploads", [
+                'file_name' => basename($fileName),
+                'file_length' => $length,
+                'file_type' => $mimeType,
+            ])
             ->throw();
 
         $sessionId = trim((string) $session->json('id'));
@@ -243,11 +235,10 @@ class TemplateCreator
             throw new \InvalidArgumentException('The uploaded image could not be read.');
         }
 
+        // The session id carries its own `?sig=...` query string, so it must be
+        // used exactly as returned. Appending appsecret_proof here would corrupt
+        // that signature and Meta would reject the upload with "HMAC check failed".
         $url = "{$base}/{$version}/{$sessionId}";
-
-        if ($proof !== null) {
-            $url .= '?appsecret_proof='.urlencode($proof);
-        }
 
         // The upload endpoint expects the raw bytes and an explicit offset. It
         // also wants the `OAuth` prefix rather than a Bearer token.
@@ -267,17 +258,6 @@ class TemplateCreator
         }
 
         return $handle;
-    }
-
-    private function appSecretProof(string $token): ?string
-    {
-        $secret = config('services.meta.app_secret') ?? config('omniflow.meta.app_secret');
-
-        if (! is_string($secret) || $secret === '') {
-            return null;
-        }
-
-        return hash_hmac('sha256', $token, $secret);
     }
 
     // public function reason(Throwable $e): string
