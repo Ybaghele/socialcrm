@@ -178,7 +178,8 @@ class AutomationController extends Controller
                     'required', 'integer',
                     Rule::exists('message_templates', 'id')
                         ->where('workspace_id', $workspace->id)
-                        ->where('status', 'approved'),
+                        ->where('status', 'approved')
+                        ->where('is_active', true),
                 ],
                 'steps.*.variables' => ['nullable', 'array'],
                 'steps.*.variables.*' => ['nullable', 'string', 'max:200'],
@@ -346,6 +347,7 @@ class AutomationController extends Controller
                 ->all(),
             'templates' => MessageTemplate::query()
                 ->where('status', 'approved')
+                ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name', 'category'])
                 ->map(fn (MessageTemplate $template) => [

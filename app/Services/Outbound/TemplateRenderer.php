@@ -8,15 +8,76 @@ namespace App\Services\Outbound;
  */
 final class TemplateRenderer
 {
-    public static function bodyText(array $components): string
+    /** @return array<string, mixed>|null */
+    public static function component(array $components, string $type): ?array
     {
         foreach ($components as $component) {
-            if (strtoupper($component['type'] ?? '') === 'BODY') {
-                return (string) ($component['text'] ?? '');
+            if (is_array($component) && strtoupper((string) ($component['type'] ?? '')) === $type) {
+                return $component;
             }
         }
 
-        return '';
+        return null;
+    }
+
+    public static function bodyText(array $components): string
+    {
+        return (string) (self::component($components, 'BODY')['text'] ?? '');
+    }
+
+    public static function headerText(array $components): ?string
+    {
+        $header = self::component($components, 'HEADER');
+
+        if (! $header || strtoupper((string) ($header['format'] ?? '')) !== 'TEXT') {
+            return null;
+        }
+
+        return self::textOrNull($header['text'] ?? null);
+    }
+
+    public static function footerText(array $components): ?string
+    {
+        return self::textOrNull(self::component($components, 'FOOTER')['text'] ?? null);
+    }
+
+    /**
+     * @return array<int, array{type: string, text: string, url?: string, phone_number?: string}>
+     */
+    public static function buttons(array $components): array
+    {
+        $buttons = self::component($components, 'BUTTONS')['buttons'] ?? [];
+
+        if (! is_array($buttons)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(function (mixed $button): ?array {
+            if (! is_array($button)) {
+                return null;
+            }
+
+            $text = self::textOrNull($button['text'] ?? null);
+
+            if ($text === null) {
+                return null;
+            }
+
+            $normalised = [
+                'type' => strtoupper((string) ($button['type'] ?? '')),
+                'text' => $text,
+            ];
+
+            if (isset($button['url']) && is_string($button['url'])) {
+                $normalised['url'] = $button['url'];
+            }
+
+            if (isset($button['phone_number']) && is_string($button['phone_number'])) {
+                $normalised['phone_number'] = $button['phone_number'];
+            }
+
+            return $normalised;
+        }, $buttons)));
     }
 
     /** Highest placeholder index in the body ("Hi {{1}}, order {{2}}" => 2). */
@@ -46,6 +107,13 @@ final class TemplateRenderer
             'type' => 'body',
             'parameters' => array_map(fn ($v) => ['type' => 'text', 'text' => self::clean($v)], array_values($variables)),
         ]];
+    }
+
+    private static function textOrNull(mixed $value): ?string
+    {
+        $text = trim((string) $value);
+
+        return $text === '' ? null : $text;
     }
 
     // Meta rejects parameters containing newlines, tabs or long runs of spaces.

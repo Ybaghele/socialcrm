@@ -33,10 +33,15 @@ class OutboundSendingTest extends TestCase
     use RefreshDatabase;
 
     private Workspace $ws;
+
     private User $author;
+
     private ChannelAccount $account;
+
     private Contact $contact;
+
     private Conversation $conversation;
+
     private MessageTemplate $template;
 
     protected function setUp(): void
@@ -230,6 +235,22 @@ class OutboundSendingTest extends TestCase
         } catch (OutboundNotAllowed $e) {
             $this->assertSame('template_variables', $e->reason);
         }
+    }
+
+    public function test_a_paused_template_is_refused_and_nothing_is_sent(): void
+    {
+        Tenancy::run($this->ws, fn () => $this->template->update(['is_active' => false]));
+
+        try {
+            $this->send(withTemplate: true, vars: ['A', 'B']);
+            $this->fail('Expected OutboundNotAllowed');
+        } catch (OutboundNotAllowed $e) {
+            $this->assertSame('template_paused', $e->reason);
+        }
+
+        Tenancy::run($this->ws, fn () => $this->assertSame(0, Message::count()));
+        $this->assertSame(10000, $this->balance());
+        Http::assertNothingSent();
     }
 
     public function test_instagram_outside_the_window_is_blocked(): void

@@ -23,7 +23,9 @@ class TemplateSyncTest extends TestCase
     use RefreshDatabase;
 
     private Workspace $workspace;
+
     private User $owner;
+
     private ChannelAccount $account;
 
     protected function setUp(): void
@@ -107,6 +109,33 @@ class TemplateSyncTest extends TestCase
             $template = MessageTemplate::first();
             $this->assertSame('rejected', $template->status);
             $this->assertSame('Promotional content', $template->rejection_reason);
+        });
+    }
+
+    public function test_syncing_does_not_overwrite_a_local_pause(): void
+    {
+        Tenancy::run($this->workspace, fn () => MessageTemplate::create([
+            'channel_account_id' => $this->account->id,
+            'name' => 'diwali_festive_offer_2026', 'language' => 'en',
+            'category' => 'marketing', 'status' => 'pending', 'is_active' => false,
+            'meta_template_id' => '100',
+            'components' => [['type' => 'BODY', 'text' => 'Hi {{1}}']],
+        ]));
+
+        Http::fake(['graph.facebook.com/*/message_templates*' => Http::response(['data' => [
+            [
+                'id' => '100', 'name' => 'diwali_festive_offer_2026', 'status' => 'APPROVED',
+                'category' => 'MARKETING', 'language' => 'en',
+                'components' => [['type' => 'BODY', 'text' => 'Hi {{1}}']],
+            ],
+        ]], 200)]);
+
+        $this->sync();
+
+        Tenancy::run($this->workspace, function () {
+            $template = MessageTemplate::sole();
+            $this->assertSame('approved', $template->status);
+            $this->assertFalse($template->isActive());
         });
     }
 

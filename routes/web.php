@@ -105,6 +105,8 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         Route::get('/templates', [TemplateController::class, 'index'])->name('templates.index');
         Route::post('/templates', [TemplateController::class, 'store'])->name('templates.store');
         Route::post('/templates/sync', [TemplateController::class, 'sync'])->name('templates.sync');
+        Route::patch('/templates/{template}', [TemplateController::class, 'update'])->name('templates.update');
+        Route::delete('/templates/{template}', [TemplateController::class, 'destroy'])->name('templates.destroy');
 
         // Connect the Meta assets the shared webhook routes inbound traffic to.
         Route::get('/channels', [ChannelController::class, 'index'])->name('channels.index');

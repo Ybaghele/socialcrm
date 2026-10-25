@@ -17,9 +17,11 @@ const workspaceSlug = computed(() => page.props.workspace?.slug);
 const workspaceRole = computed(() => page.props.workspaceRole);
 
 const syncing = ref(false);
+const busyId = ref(null);
 const showCreator = ref(false);
 
 const canCreate = computed(() => hasWhatsapp.value);
+const canManage = computed(() => ['owner', 'admin'].includes(workspaceRole.value));
 
 function sync() {
     if (syncing.value) {
@@ -46,6 +48,48 @@ function openCreator() {
     }
     showCreator.value = true;
 }
+
+function toggleActive(template) {
+    if (busyId.value) {
+        return;
+    }
+
+    busyId.value = template.id;
+
+    router.patch(
+        route('templates.update', { workspace: workspaceSlug.value, template: template.id }),
+        { is_active: !template.active },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                busyId.value = null;
+            },
+        },
+    );
+}
+
+function removeTemplate(template) {
+    if (busyId.value || !window.confirm(`Delete “${template.name}” from Meta and this workspace? This cannot be undone.`)) {
+        return;
+    }
+
+    busyId.value = template.id;
+
+    router.delete(route('templates.destroy', { workspace: workspaceSlug.value, template: template.id }), {
+        preserveScroll: true,
+        onFinish: () => {
+            busyId.value = null;
+        },
+    });
+}
+
+const buttonMeta = {
+    QUICK_REPLY: { label: 'Reply', icon: 'fa-reply' },
+    URL: { label: 'Link', icon: 'fa-arrow-up-right-from-square' },
+    PHONE_NUMBER: { label: 'Call', icon: 'fa-phone' },
+};
+
+const buttonInfo = (value) => buttonMeta[value] ?? { label: value, icon: 'fa-hand-pointer' };
 
 const statusMeta = {
     approved: { label: 'Approved', class: 'bg-emerald-100 text-emerald-800', icon: 'fa-circle-check' },
@@ -113,7 +157,7 @@ const hasWhatsapp = computed(() => props.whatsappAccounts.length > 0);
                 </div>
 
                 <!-- Counts -->
-                <div v-else class="grid grid-cols-3 gap-4">
+                <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                         <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Approved</div>
                         <div class="mt-1 text-2xl font-black text-emerald-600">{{ counts.approved }}</div>
@@ -125,6 +169,10 @@ const hasWhatsapp = computed(() => props.whatsappAccounts.length > 0);
                     <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                         <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Rejected</div>
                         <div class="mt-1 text-2xl font-black text-rose-500">{{ counts.rejected }}</div>
+                    </div>
+                    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Paused</div>
+                        <div class="mt-1 text-2xl font-black text-slate-500">{{ counts.disabled }}</div>
                     </div>
                 </div>
 
@@ -142,6 +190,9 @@ const hasWhatsapp = computed(() => props.whatsappAccounts.length > 0);
                                     <span class="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" :class="status(template.status).class">
                                         <i class="fa-solid mr-1" :class="status(template.status).icon"></i>{{ status(template.status).label }}
                                     </span>
+                                    <span v-if="!template.active" class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600" title="Paused for this workspace">
+                                        <i class="fa-solid fa-pause mr-1"></i>Paused
+                                    </span>
                                     <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-500">
                                         {{ template.category }}
                                     </span>
@@ -149,7 +200,24 @@ const hasWhatsapp = computed(() => props.whatsappAccounts.length > 0);
                                         {{ template.language }}
                                     </span>
                                 </div>
-                                <p class="mt-2 whitespace-pre-line text-xs leading-relaxed text-slate-600">{{ template.body || '—' }}</p>
+
+                                <div class="mt-2 max-w-2xl rounded-lg bg-[#efeae2] px-3 py-2 text-xs text-slate-700">
+                                    <p v-if="template.header" class="mb-1 whitespace-pre-line font-bold text-slate-800">{{ template.header }}</p>
+                                    <p class="whitespace-pre-line leading-relaxed">{{ template.body || '—' }}</p>
+                                    <p v-if="template.footer" class="mt-1 whitespace-pre-line text-[11px] text-slate-500">{{ template.footer }}</p>
+                                </div>
+
+                                <div v-if="template.buttons.length" class="mt-2 flex flex-wrap gap-1.5">
+                                    <span
+                                        v-for="(templateButton, index) in template.buttons"
+                                        :key="`${template.id}-${index}`"
+                                        class="inline-flex items-center gap-1.5 rounded-md border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
+                                        :title="buttonInfo(templateButton.type).label"
+                                    >
+                                        <i class="fa-solid" :class="buttonInfo(templateButton.type).icon"></i>{{ templateButton.text }}
+                                    </span>
+                                </div>
+
                                 <p v-if="template.rejectionReason" class="mt-1 text-[11px] font-medium text-rose-600">
                                     Reason: {{ template.rejectionReason }}
                                 </p>
@@ -163,13 +231,36 @@ const hasWhatsapp = computed(() => props.whatsappAccounts.length > 0);
                                 </div>
                             </div>
 
-                            <span
-                                v-if="template.status !== 'approved'"
-                                class="shrink-0 self-start rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-400"
-                                title="Only approved templates can be broadcast"
-                            >
-                                Not broadcastable
-                            </span>
+                            <div class="flex shrink-0 flex-wrap items-center gap-2 self-start sm:flex-col sm:items-end">
+                                <span
+                                    v-if="template.status !== 'approved' || !template.active"
+                                    class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-400"
+                                    title="Only active, approved templates can be broadcast"
+                                >
+                                    Not broadcastable
+                                </span>
+                                <div v-if="canManage" class="flex flex-wrap items-center justify-end gap-2">
+                                    <button
+                                        v-if="template.status === 'approved'"
+                                        type="button"
+                                        class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                                        :disabled="busyId === template.id"
+                                        @click="toggleActive(template)"
+                                    >
+                                        <i class="fa-solid mr-1" :class="busyId === template.id ? 'fa-circle-notch fa-spin' : template.active ? 'fa-pause' : 'fa-play'"></i>
+                                        {{ template.active ? 'Pause' : 'Resume' }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="rounded-lg border border-rose-200 px-2.5 py-1.5 text-[11px] font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
+                                        :disabled="busyId === template.id"
+                                        title="Delete from Meta and this workspace"
+                                        @click="removeTemplate(template)"
+                                    >
+                                        <i class="fa-solid" :class="busyId === template.id ? 'fa-circle-notch fa-spin' : 'fa-trash'"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Empty state -->
@@ -177,8 +268,8 @@ const hasWhatsapp = computed(() => props.whatsappAccounts.length > 0);
                             <i class="fa-solid fa-file-lines text-2xl text-slate-300"></i>
                             <p class="text-sm font-semibold text-slate-500">No templates yet</p>
                             <p class="max-w-md text-xs text-slate-400">
-                                Create a template in Meta Business Manager (WhatsApp Manager &rarr; Message Templates), then
-                                hit <strong>Sync from Meta</strong> — it will appear here once Meta has reviewed it.
+                                Create your first template with the button above, or use <strong>Sync from Meta</strong> to
+                                import templates you already built in WhatsApp Manager.
                             </p>
                         </div>
                     </div>

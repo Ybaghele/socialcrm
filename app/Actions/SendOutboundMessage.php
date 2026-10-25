@@ -28,9 +28,7 @@ use Illuminate\Support\Str;
  */
 class SendOutboundMessage
 {
-    public function __construct(private WalletService $wallet)
-    {
-    }
+    public function __construct(private WalletService $wallet) {}
 
     /**
      * A null $author means the workspace itself is sending (an automation), which
@@ -129,6 +127,10 @@ class SendOutboundMessage
 
         if ($template->status !== 'approved') {
             throw new OutboundNotAllowed('template_not_approved', 'That template has not been approved by Meta yet.');
+        }
+
+        if (! $template->isActive()) {
+            throw new OutboundNotAllowed('template_paused', 'That template is paused for this workspace.');
         }
 
         if ($template->category === 'marketing' && ! $optedIn) {

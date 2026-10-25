@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\Campaigns\ProcessCampaignEnrollments;
 use App\Models\Campaign;
 use App\Models\CampaignTrigger;
 use App\Models\ChannelAccount;
 use App\Models\Contact;
 use App\Models\MessageTemplate;
 use App\Models\Segment;
-use App\Jobs\Campaigns\ProcessCampaignEnrollments;
 use App\Services\Audiences\SegmentQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -99,6 +99,7 @@ class CampaignController extends Controller
             'broadcast' => [
                 'templates' => MessageTemplate::query()
                     ->where('status', 'approved')
+                    ->where('is_active', true)
                     ->orderBy('name')
                     ->get()
                     ->map(fn (MessageTemplate $template) => [
@@ -211,9 +212,9 @@ class CampaignController extends Controller
     {
         $template = MessageTemplate::query()->find($data['template_id'] ?? 0);
 
-        if (! $template || $template->status !== 'approved') {
+        if (! $template || $template->status !== 'approved' || ! $template->isActive()) {
             throw ValidationException::withMessages([
-                'template_id' => 'Pick a template Meta has approved. Sync Templates if yours is missing.',
+                'template_id' => 'Pick a template Meta has approved and that is not paused. Sync Templates if yours is missing.',
             ]);
         }
 

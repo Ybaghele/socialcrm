@@ -64,9 +64,10 @@ class TemplateCreationTest extends TestCase
             'name' => 'diwali_offer',
             'category' => 'marketing',
             'language' => 'en_US',
-            'components' => [
-                ['type' => 'BODY', 'text' => 'Hi {{1}}, enjoy {{2}} off.'],
-            ],
+            'header_text' => null,
+            'body' => 'Hi {{1}}, enjoy {{2}} off.',
+            'footer_text' => null,
+            'buttons' => [],
         ];
     }
 
@@ -109,5 +110,79 @@ class TemplateCreationTest extends TestCase
             $this->assertSame('pending', $template->status);
             $this->assertSame('123', $template->meta_template_id);
         });
+    }
+
+    public function test_header_footer_and_buttons_are_sent_as_meta_components(): void
+    {
+        Http::fake(['graph.facebook.com/*/message_templates' => Http::response([
+            'id' => '123', 'status' => 'PENDING',
+        ], 200)]);
+
+        $payload = $this->payload();
+        $payload['header_text'] = 'Diwali special';
+        $payload['footer_text'] = 'Reply STOP to opt out';
+        $payload['buttons'] = [
+            ['type' => 'URL', 'text' => 'View offer', 'url' => 'https://example.com/offer'],
+            ['type' => 'QUICK_REPLY', 'text' => 'Tell me more'],
+            ['type' => 'PHONE_NUMBER', 'text' => 'Call us', 'phone_number' => '+91 98200 44821'],
+        ];
+
+        $this->actingAs($this->owner)
+            ->post('/w/acme/templates', $payload)
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        Http::assertSent(function ($request) {
+            return $request->data()['components'] === [
+                ['type' => 'HEADER', 'format' => 'TEXT', 'text' => 'Diwali special'],
+                [
+                    'type' => 'BODY',
+                    'text' => 'Hi {{1}}, enjoy {{2}} off.',
+                    'example' => ['body_text' => [['Sample 1', 'Sample 2']]],
+                ],
+                ['type' => 'FOOTER', 'text' => 'Reply STOP to opt out'],
+                [
+                    'type' => 'BUTTONS',
+                    'buttons' => [
+                        ['type' => 'QUICK_REPLY', 'text' => 'Tell me more'],
+                        ['type' => 'URL', 'text' => 'View offer', 'url' => 'https://example.com/offer'],
+                        ['type' => 'PHONE_NUMBER', 'text' => 'Call us', 'phone_number' => '+919820044821'],
+                    ],
+                ],
+            ];
+        });
+    }
+
+    public function test_invalid_button_shapes_are_rejected_before_calling_meta(): void
+    {
+        Http::fake();
+
+        $payload = $this->payload();
+        $payload['buttons'] = [
+            ['type' => 'URL', 'text' => 'View offer'],
+        ];
+
+        $this->actingAs($this->owner)
+            ->post('/w/acme/templates', $payload)
+            ->assertRedirect()
+            ->assertSessionHasErrors('buttons.0.url');
+
+        Http::assertNothingSent();
+        Tenancy::run($this->workspace, fn () => $this->assertSame(0, MessageTemplate::count()));
+    }
+
+    public function test_variables_outside_the_body_are_rejected(): void
+    {
+        Http::fake();
+
+        $payload = $this->payload();
+        $payload['header_text'] = 'Hi {{1}}';
+
+        $this->actingAs($this->owner)
+            ->post('/w/acme/templates', $payload)
+            ->assertRedirect()
+            ->assertSessionHasErrors('header_text');
+
+        Http::assertNothingSent();
     }
 }
