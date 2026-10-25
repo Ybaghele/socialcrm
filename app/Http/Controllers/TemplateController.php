@@ -119,16 +119,21 @@ class TemplateController extends Controller
         ];
         try {
             $meta = $creator->create($account, $payload);
-            
+
             // Check if Meta rejected it without throwing a hard exception
             if (isset($meta['status']) && $meta['status'] === 'failed') {
-                $errorMessage = $meta['error']['error']['message'] 
-                    ?? $meta['error']['message'] 
+                // Meta puts the actionable explanation in error_user_msg (e.g. "Parameters words
+                // ratio exceeds limit"); error.message is usually the useless "Invalid parameter".
+                $metaError = $meta['error']['error'] ?? $meta['error'] ?? [];
+
+                $errorMessage = $metaError['error_user_msg']
+                    ?? $metaError['error_user_title']
+                    ?? $metaError['message']
                     ?? 'Unknown validation rejection from Meta API.';
-                    
-                return back()->with('error', 'Meta rejected this template: ' . $errorMessage);
+
+                return back()->with('error', 'Meta rejected this template: '.$errorMessage);
             }
-            
+
         } catch (ConnectionException $e) {
             return back()->with('error', 'Could not reach Meta: '.$e->getMessage());
         } catch (ValidationException $e) {
@@ -136,7 +141,6 @@ class TemplateController extends Controller
         } catch (\Throwable $e) {
             return back()->with('error', 'Meta rejected this template: '.$creator->reason($e));
         }
-
 
         MessageTemplate::create([
             'workspace_id' => $workspace->getKey(),
@@ -152,4 +156,3 @@ class TemplateController extends Controller
         return back()->with('success', 'Template submitted to Meta for review. It will appear here once status updates come in or after syncing.');
     }
 }
-
