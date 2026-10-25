@@ -7,6 +7,7 @@ use App\Models\CannedResponse;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\PipelineStage;
+use App\Models\Tag;
 use App\Models\Workspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -91,6 +92,15 @@ class InboxController extends Controller
                     'body' => $r->body,
                     'shortcut' => $r->shortcut,
                 ]),
+            'tags' => Tag::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'color'])
+                ->map(fn (Tag $tag) => [
+                    'id' => $tag->id,
+                    'name' => $tag->name,
+                    'color' => $tag->color,
+                ])
+                ->values(),
         ]);
     }
 

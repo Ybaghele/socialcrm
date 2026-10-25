@@ -4,6 +4,8 @@ import { router, usePage } from '@inertiajs/vue3';
 import { route } from '@ziggy';
 import axios from 'axios';
 import OmniLayout from '@/Layouts/OmniLayout.vue';
+import QuickRepliesModal from '@/Components/Inbox/QuickRepliesModal.vue';
+import TagsModal from '@/Components/Inbox/TagsModal.vue';
 
 const props = defineProps({
     filters: { type: Object, required: true },
@@ -13,6 +15,7 @@ const props = defineProps({
     messages: { type: Array, required: true },
     pipelineStages: { type: Array, required: true },
     cannedResponses: { type: Array, required: true },
+    tags: { type: Array, required: true },
 });
 
 const page = usePage();
@@ -32,6 +35,8 @@ const showCannedMenu = ref(false);
 const sending = ref(false);
 const showMobileContact = ref(false);
 const mobileListVisible = ref(false);
+const showQuickReplies = ref(false);
+const showTags = ref(false);
 const threadScroller = ref(null);
 
 /* ------------------------------------------------------------------ *
@@ -201,6 +206,11 @@ function useCanned(response) {
     showCannedMenu.value = false;
 }
 
+function manageQuickReplies() {
+    showCannedMenu.value = false;
+    showQuickReplies.value = true;
+}
+
 function simulateInbound() {
     router.post(route('inbox.simulate', { workspace: workspaceSlug.value }), {}, { preserveScroll: true, preserveState: true });
 }
@@ -213,7 +223,7 @@ function simulateInbound() {
  * visible. Echo, when available, still refreshes instantly.           *
  * ------------------------------------------------------------------ */
 const POLL_INTERVAL_MS = 15_000;
-const POLLED_PROPS = ['conversations', 'selectedId', 'thread', 'messages', 'navCounts'];
+const POLLED_PROPS = ['conversations', 'selectedId', 'thread', 'messages', 'cannedResponses', 'tags', 'navCounts'];
 
 let inboxChannel = null;
 let reloadTimer = null;
@@ -657,7 +667,23 @@ watch(
                                     <span class="block text-xs font-semibold text-slate-700">{{ response.title }}</span>
                                     <span class="block truncate text-[11px] text-slate-400">{{ response.body }}</span>
                                 </button>
-                                <p v-if="!cannedResponses.length" class="px-3 py-3 text-xs text-slate-400">No canned responses saved yet.</p>
+                                <button
+                                    v-if="!cannedResponses.length"
+                                    type="button"
+                                    class="block w-full rounded-lg px-3 py-3 text-left text-xs font-semibold text-brand-700 transition hover:bg-brand-50"
+                                    @click="manageQuickReplies"
+                                >
+                                    No quick replies yet — create your first one
+                                </button>
+                                <div class="mt-1 border-t border-slate-100 pt-1">
+                                    <button
+                                        type="button"
+                                        class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-brand-700 transition hover:bg-brand-50"
+                                        @click="manageQuickReplies"
+                                    >
+                                        <i class="fa-solid fa-sliders text-[10px]"></i> Manage quick replies
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -751,17 +777,28 @@ watch(
                         </select>
                     </div>
 
-                    <div v-if="activeChat.contact.tags.length">
-                        <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-400">Tags</label>
-                        <div class="flex flex-wrap gap-1.5">
+                    <div>
+                        <div class="mb-1 flex items-center justify-between">
+                            <label class="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Tags</label>
+                            <button
+                                type="button"
+                                class="text-[11px] font-bold text-brand-700 transition hover:text-brand-800"
+                                @click="showTags = true"
+                            >
+                                {{ activeChat.contact.tags.length ? 'Edit' : 'Add tags' }}
+                            </button>
+                        </div>
+                        <div v-if="activeChat.contact.tags.length" class="flex flex-wrap gap-1.5">
                             <span
                                 v-for="tag in activeChat.contact.tags"
                                 :key="tag.id"
-                                class="rounded-full border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-500"
+                                class="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-500"
                             >
+                                <span class="h-1.5 w-1.5 rounded-full" :style="{ backgroundColor: tag.color || '#64748b' }"></span>
                                 {{ tag.name }}
                             </span>
                         </div>
+                        <p v-else class="text-xs text-slate-400">No tags yet.</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-2 pt-1">
@@ -828,10 +865,36 @@ watch(
                     >
                         <option v-for="stage in pipelineStages" :key="stage.id" :value="stage.id">{{ stage.name }}</option>
                     </select>
+                    <div>
+                        <div class="mb-1 flex items-center justify-between">
+                            <label class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Tags</label>
+                            <button
+                                type="button"
+                                class="text-[11px] font-bold text-brand-700"
+                                @click="showMobileContact = false; showTags = true"
+                            >
+                                {{ activeChat.contact.tags.length ? 'Edit' : 'Add tags' }}
+                            </button>
+                        </div>
+                        <div v-if="activeChat.contact.tags.length" class="flex flex-wrap gap-1.5">
+                            <span
+                                v-for="tag in activeChat.contact.tags"
+                                :key="tag.id"
+                                class="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-500"
+                            >
+                                <span class="h-1.5 w-1.5 rounded-full" :style="{ backgroundColor: tag.color || '#64748b' }"></span>
+                                {{ tag.name }}
+                            </span>
+                        </div>
+                        <p v-else class="text-xs text-slate-400">No tags yet.</p>
+                    </div>
                     <p class="text-xs text-slate-500">{{ activeChat.totalMessages }} messages · first reply
                         {{ activeChat.firstResponseAt ? 'sent' : 'pending' }}</p>
                 </div>
             </div>
         </div>
+
+        <QuickRepliesModal :show="showQuickReplies" :responses="cannedResponses" @close="showQuickReplies = false" />
+        <TagsModal v-if="activeChat" :show="showTags" :tags="tags" :contact="activeChat.contact" @close="showTags = false" />
     </OmniLayout>
 </template>

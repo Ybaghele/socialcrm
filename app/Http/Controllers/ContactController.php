@@ -6,6 +6,8 @@ use App\Models\Contact;
 use App\Models\Workspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -118,6 +120,55 @@ class ContactController extends Controller
         $contact->fill($data)->save();
 
         return back()->with('success', 'Contact updated.');
+    }
+
+    /**
+     * PATCH /w/{workspace}/contacts/{contact}/tags
+     *
+     * Replaces the contact's tag set with the checked ids. Existing pivots are
+     * left untouched so an automation-applied tag keeps its provenance; only
+     * newly checked tags are stamped as manually applied.
+     */
+    public function syncTags(Request $request, string $workspace, Contact $contact): RedirectResponse
+    {
+        $currentWorkspace = $request->attributes->get('workspace');
+
+        abort_unless($currentWorkspace instanceof Workspace, 404);
+
+        $data = $request->validate([
+            'tag_ids' => ['present', 'array', 'max:50'],
+            'tag_ids.*' => [
+                'integer',
+                Rule::exists('tags', 'id')
+                    ->where(fn ($query) => $query->where('workspace_id', $currentWorkspace->getKey())),
+            ],
+        ]);
+
+        $tagIds = collect($data['tag_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        DB::transaction(function () use ($contact, $tagIds) {
+            $current = $contact->tags()->pluck('tags.id');
+
+            $attach = $tagIds
+                ->diff($current)
+                ->mapWithKeys(fn (int $id) => [$id => ['applied_by' => 'user']])
+                ->all();
+
+            $detach = $current->diff($tagIds)->all();
+
+            if ($attach !== []) {
+                $contact->tags()->attach($attach);
+            }
+
+            if ($detach !== []) {
+                $contact->tags()->detach($detach);
+            }
+        });
+
+        return back()->with('success', 'Contact tags updated.');
     }
 
     /** Base query with the directory's server-side filters applied. */

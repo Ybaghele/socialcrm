@@ -103,6 +103,7 @@ class InboxPageTest extends TestCase
                 ->where('messages.0.body', 'Hi, what is the price?')
                 ->has('pipelineStages')
                 ->has('cannedResponses')
+                ->has('tags')
                 ->has('channels', 1)
             );
     }

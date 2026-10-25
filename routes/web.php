@@ -4,6 +4,7 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AutomationController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\CannedResponseController;
 use App\Http\Controllers\ChannelController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ConversationController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\MetaConnectController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SegmentController;
+use App\Http\Controllers\TagController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\WorkspaceController;
 use App\Models\Plan;
@@ -151,6 +153,17 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         Route::patch('/conversations/{conversation}', [ConversationController::class, 'update'])
             ->name('conversations.update');
 
+        // Shared quick replies used by the Inbox composer.
+        Route::post('/canned-responses', [CannedResponseController::class, 'store'])->name('canned-responses.store');
+        Route::patch('/canned-responses/{cannedResponse}', [CannedResponseController::class, 'update'])->name('canned-responses.update');
+        Route::delete('/canned-responses/{cannedResponse}', [CannedResponseController::class, 'destroy'])->name('canned-responses.destroy');
+
+        // Workspace tag vocabulary plus the per-contact assignment.
+        Route::post('/tags', [TagController::class, 'store'])->name('tags.store');
+        Route::patch('/tags/{tag}', [TagController::class, 'update'])->name('tags.update');
+        Route::delete('/tags/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');
+
+        Route::patch('/contacts/{contact}/tags', [ContactController::class, 'syncTags'])->name('contacts.tags.sync');
         Route::patch('/contacts/{contact}', [ContactController::class, 'update'])->name('contacts.update');
         Route::post('/contacts', [ContactController::class, 'store'])->name('contacts.store');
     });
