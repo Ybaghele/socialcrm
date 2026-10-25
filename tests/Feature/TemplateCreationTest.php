@@ -10,7 +10,9 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -33,6 +35,7 @@ class TemplateCreationTest extends TestCase
         parent::setUp();
 
         config([
+            'omniflow.meta.app_id' => 'APP1',
             'omniflow.meta.app_secret' => 'test-secret',
             'omniflow.meta.graph_version' => 'v22.0',
             'omniflow.meta.hosts.whatsapp' => 'https://graph.facebook.com',
@@ -151,6 +154,94 @@ class TemplateCreationTest extends TestCase
                 ],
             ];
         });
+    }
+
+    public function test_an_image_header_is_uploaded_to_meta_and_mirrored_locally(): void
+    {
+        Storage::fake('public');
+
+        Http::fake([
+            'graph.facebook.com/v22.0/APP1/uploads*' => Http::response(['id' => 'upload:session-1'], 200),
+            'graph.facebook.com/v22.0/upload:session-1*' => Http::response(['h' => '4::sample'], 200),
+            'graph.facebook.com/*/message_templates' => Http::response([
+                'id' => '123', 'status' => 'PENDING',
+            ], 200),
+        ]);
+
+        $payload = $this->payload();
+        $payload['header_type'] = 'image';
+        $payload['header_image'] = UploadedFile::fake()->image('header.jpg', 1200, 630);
+
+        $this->actingAs($this->owner)
+            ->post('/w/acme/templates', $payload)
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        Tenancy::run($this->workspace, function () {
+            $template = MessageTemplate::sole();
+
+            $this->assertNotNull($template->header_image_path);
+            Storage::disk('public')->assertExists($template->header_image_path);
+            $this->assertTrue($template->requiresImageHeader());
+            $this->assertSame('4::sample', $template->components[0]['example']['header_handle'][0]);
+        });
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/APP1/uploads')
+            && $request['file_type'] === 'image/jpeg');
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/upload:session-1')
+            && $request->hasHeader('file_offset', '0'));
+
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/message_templates')
+            && $request->data()['components'][0] === [
+                'type' => 'HEADER',
+                'format' => 'IMAGE',
+                'example' => ['header_handle' => ['4::sample']],
+            ]);
+    }
+
+    public function test_a_template_cannot_have_both_a_text_and_an_image_header(): void
+    {
+        Storage::fake('public');
+        Http::fake();
+
+        $payload = $this->payload();
+        $payload['header_text'] = 'Diwali special';
+        $payload['header_image'] = UploadedFile::fake()->image('header.jpg');
+
+        $this->actingAs($this->owner)
+            ->post('/w/acme/templates', $payload)
+            ->assertRedirect()
+            ->assertSessionHasErrors('header_image');
+
+        Http::assertNothingSent();
+        $this->assertSame([], Storage::disk('public')->allFiles());
+        Tenancy::run($this->workspace, fn () => $this->assertSame(0, MessageTemplate::count()));
+    }
+
+    public function test_a_rejected_image_template_removes_its_sample_file(): void
+    {
+        Storage::fake('public');
+
+        Http::fake([
+            'graph.facebook.com/v22.0/APP1/uploads*' => Http::response(['id' => 'upload:session-1'], 200),
+            'graph.facebook.com/v22.0/upload:session-1*' => Http::response(['h' => '4::sample'], 200),
+            'graph.facebook.com/*/message_templates' => Http::response([
+                'error' => ['message' => 'Invalid parameter', 'error_user_msg' => 'The sample image was rejected.'],
+            ], 400),
+        ]);
+
+        $payload = $this->payload();
+        $payload['header_type'] = 'image';
+        $payload['header_image'] = UploadedFile::fake()->image('header.jpg');
+
+        $this->actingAs($this->owner)
+            ->post('/w/acme/templates', $payload)
+            ->assertRedirect()
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'sample image was rejected'));
+
+        $this->assertSame([], Storage::disk('public')->allFiles());
+        Tenancy::run($this->workspace, fn () => $this->assertSame(0, MessageTemplate::count()));
     }
 
     public function test_invalid_button_shapes_are_rejected_before_calling_meta(): void

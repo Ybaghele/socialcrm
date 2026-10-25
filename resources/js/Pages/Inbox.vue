@@ -597,8 +597,15 @@ watch(
                         <!-- Outbound -->
                         <div v-else-if="message.direction === 'outbound'" class="flex justify-end">
                             <div class="max-w-[80%] sm:max-w-[65%]">
-                                <div class="rounded-2xl rounded-tr-none bg-brand-600 px-4 py-2.5 text-sm text-white shadow-sm">
-                                    {{ message.body }}
+                                <div class="overflow-hidden rounded-2xl rounded-tr-none bg-brand-600 text-sm text-white shadow-sm">
+                                    <img
+                                        v-if="message.imageUrl"
+                                        :src="message.imageUrl"
+                                        alt="Template image"
+                                        loading="lazy"
+                                        class="max-h-64 w-full object-cover"
+                                    />
+                                    <p v-if="message.body" class="whitespace-pre-line px-4 py-2.5">{{ message.body }}</p>
                                 </div>
                                 <p class="mt-1 flex items-center justify-end gap-1.5 text-[10px] text-slate-400">
                                     {{ message.author ? message.author + ' · ' : '' }}{{ formatTime(message.createdAt) }}

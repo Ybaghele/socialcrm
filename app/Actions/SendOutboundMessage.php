@@ -37,7 +37,7 @@ class SendOutboundMessage
      * unread badge or set first_response_at — an agent still needs to look at the
      * thread, and "time to first human reply" must stay honest.
      */
-    public function handle(Conversation $conversation, ?User $author, ?string $text = null, ?MessageTemplate $template = null, array $variables = []): Message
+    public function handle(Conversation $conversation, ?User $author, ?string $text = null, ?MessageTemplate $template = null, array $variables = [], ?string $headerImageUrl = null): Message
     {
         $channel = ChannelType::from($conversation->channel);
         $account = $conversation->channelAccount;
@@ -53,7 +53,7 @@ class SendOutboundMessage
         }
 
         [$type, $body, $payload, $cost] = $template
-            ? $this->planTemplate($conversation, $channel, $account->id, $contact->is_opted_in, $template, $variables)
+            ? $this->planTemplate($conversation, $channel, $account->id, $contact->is_opted_in, $template, $variables, $headerImageUrl)
             : $this->planText($conversation, $channel, (string) $text);
 
         $message = DB::transaction(function () use ($conversation, $author, $template, $type, $body, $payload, $cost) {
@@ -115,7 +115,7 @@ class SendOutboundMessage
     }
 
     /** @return array{0: string, 1: string, 2: ?array, 3: int} */
-    private function planTemplate(Conversation $conversation, ChannelType $channel, int $accountId, bool $optedIn, MessageTemplate $template, array $variables): array
+    private function planTemplate(Conversation $conversation, ChannelType $channel, int $accountId, bool $optedIn, MessageTemplate $template, array $variables, ?string $headerImageUrl = null): array
     {
         if ($channel !== ChannelType::WhatsApp) {
             throw new OutboundNotAllowed('template_unsupported', 'Template messages are only available on WhatsApp.');
@@ -142,16 +142,33 @@ class SendOutboundMessage
             throw new OutboundNotAllowed('template_variables', "This template needs {$expected} variable(s); ".count($variables).' given.');
         }
 
+        $imageUrl = null;
+
+        if ($template->requiresImageHeader()) {
+            $imageUrl = trim((string) ($headerImageUrl ?? '')) ?: $template->headerImageUrl();
+
+            if (! $imageUrl) {
+                throw new OutboundNotAllowed('template_image_required', 'This template uses an image header. Choose an image for this campaign or upload a sample image on the template.');
+            }
+        }
+
+        $templatePayload = [
+            'name' => $template->name,
+            'language' => $template->language,
+            'components' => TemplateRenderer::sendComponents($template->components, $variables, $imageUrl),
+        ];
+
+        if ($imageUrl !== null) {
+            // The inbox reads this back to show the same image the customer saw.
+            $templatePayload['header_image_url'] = $imageUrl;
+        }
+
         $cost = (int) config("omniflow.pricing.whatsapp_template_paise.{$template->category}", 0);
 
         return [
             'template',
             TemplateRenderer::render($template->components, $variables),
-            ['template' => [
-                'name' => $template->name,
-                'language' => $template->language,
-                'components' => TemplateRenderer::sendComponents($template->components, $variables),
-            ]],
+            ['template' => $templatePayload],
             $cost,
         ];
     }

@@ -199,12 +199,26 @@ const hasWhatsapp = computed(() => props.whatsappAccounts.length > 0);
                                     <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-500">
                                         {{ template.language }}
                                     </span>
+                                    <span v-if="template.requiresImage" class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+                                        <i class="fa-solid fa-image mr-1"></i>Image header
+                                    </span>
                                 </div>
 
-                                <div class="mt-2 max-w-2xl rounded-lg bg-[#efeae2] px-3 py-2 text-xs text-slate-700">
-                                    <p v-if="template.header" class="mb-1 whitespace-pre-line font-bold text-slate-800">{{ template.header }}</p>
-                                    <p class="whitespace-pre-line leading-relaxed">{{ template.body || '—' }}</p>
-                                    <p v-if="template.footer" class="mt-1 whitespace-pre-line text-[11px] text-slate-500">{{ template.footer }}</p>
+                                <div class="mt-2 max-w-2xl overflow-hidden rounded-lg bg-[#efeae2] text-xs text-slate-700">
+                                    <img
+                                        v-if="template.headerImageUrl"
+                                        :src="template.headerImageUrl"
+                                        alt="Template sample"
+                                        class="max-h-40 w-full object-cover"
+                                    />
+                                    <div class="px-3 py-2">
+                                        <p v-if="template.requiresImage && !template.headerImageUrl" class="mb-1 text-[11px] font-semibold text-sky-700">
+                                            This template needs an image. Campaigns can upload one.
+                                        </p>
+                                        <p v-if="template.header" class="mb-1 whitespace-pre-line font-bold text-slate-800">{{ template.header }}</p>
+                                        <p class="whitespace-pre-line leading-relaxed">{{ template.body || '—' }}</p>
+                                        <p v-if="template.footer" class="mt-1 whitespace-pre-line text-[11px] text-slate-500">{{ template.footer }}</p>
+                                    </div>
                                 </div>
 
                                 <div v-if="template.buttons.length" class="mt-2 flex flex-wrap gap-1.5">

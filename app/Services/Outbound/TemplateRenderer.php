@@ -4,7 +4,8 @@ namespace App\Services\Outbound;
 
 /**
  * Pure helpers for Meta template components. Body variables only ({{1}}, {{2}}...);
- * header/button variables are not supported yet.
+ * header/button variables are not supported yet. An image header is static, but
+ * the URL supplied at send time may differ from the template's sample.
  */
 final class TemplateRenderer
 {
@@ -34,6 +35,11 @@ final class TemplateRenderer
         }
 
         return self::textOrNull($header['text'] ?? null);
+    }
+
+    public static function hasImageHeader(array $components): bool
+    {
+        return strtoupper((string) (self::component($components, 'HEADER')['format'] ?? '')) === 'IMAGE';
     }
 
     public static function footerText(array $components): ?string
@@ -96,17 +102,35 @@ final class TemplateRenderer
         return preg_replace_callback('/\{\{(\d+)\}\}/', fn ($m) => self::clean($vars[(int) $m[1] - 1] ?? ''), self::bodyText($components));
     }
 
-    /** The "components" array Meta expects when sending. */
-    public static function sendComponents(array $components, array $variables): array
+    /**
+     * The "components" array Meta expects when sending. Image headers are sent
+     * before the body; text headers take no send-time parameters.
+     */
+    public static function sendComponents(array $components, array $variables, ?string $imageUrl = null): array
     {
-        if (self::placeholderCount($components) === 0) {
-            return [];
+        $send = [];
+        $imageUrl = trim((string) $imageUrl);
+
+        if (self::hasImageHeader($components) && $imageUrl !== '') {
+            $send[] = [
+                'type' => 'header',
+                'parameters' => [[
+                    'type' => 'image',
+                    'image' => ['link' => $imageUrl],
+                ]],
+            ];
         }
 
-        return [[
+        if (self::placeholderCount($components) === 0) {
+            return $send;
+        }
+
+        $send[] = [
             'type' => 'body',
             'parameters' => array_map(fn ($v) => ['type' => 'text', 'text' => self::clean($v)], array_values($variables)),
-        ]];
+        ];
+
+        return $send;
     }
 
     private static function textOrNull(mixed $value): ?string

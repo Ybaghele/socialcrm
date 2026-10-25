@@ -7,9 +7,9 @@ use Illuminate\Validation\ValidationException;
 /**
  * Turns the builder's flat fields into the component array Meta expects.
  *
- * Only body variables are supported by the sender today, so headers, footers
- * and button labels are deliberately kept static. Keeping this normalisation on
- * the server means the stored mirror and the payload sent to Meta cannot drift.
+ * Headers may be static text or an approved sample image; body variables are
+ * the only variable type the sender supports. Keeping this normalisation on the
+ * server means the stored mirror and the payload sent to Meta cannot drift.
  */
 class TemplateDefinition
 {
@@ -22,7 +22,7 @@ class TemplateDefinition
      * }  $data
      * @return array<int, array<string, mixed>>
      */
-    public function components(array $data): array
+    public function components(array $data, ?string $headerImageHandle = null): array
     {
         $body = trim((string) $data['body']);
 
@@ -36,8 +36,19 @@ class TemplateDefinition
         $components = [];
 
         $header = trim((string) ($data['header_text'] ?? ''));
+        $headerImageHandle = trim((string) $headerImageHandle);
 
-        if ($header !== '') {
+        if ($headerImageHandle !== '') {
+            if ($header !== '') {
+                $this->invalid('header_image', 'Use either a text header or an image header, not both.');
+            }
+
+            $components[] = [
+                'type' => 'HEADER',
+                'format' => 'IMAGE',
+                'example' => ['header_handle' => [$headerImageHandle]],
+            ];
+        } elseif ($header !== '') {
             $this->rejectVariables('header_text', $header, 'Header text cannot contain variables yet.');
             $components[] = ['type' => 'HEADER', 'format' => 'TEXT', 'text' => $header];
         }

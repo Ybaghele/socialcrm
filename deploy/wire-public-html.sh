@@ -111,12 +111,34 @@ else
     echo "   !! Is public/build committed? (npm.cmd run build && git add public/build)"
 fi
 
+# Uploaded template and campaign images live in storage/app/public and are
+# fetched by Meta over HTTPS. `artisan storage:link` only links <app>/public,
+# which is not the web root on Hostinger, so link the same target here too.
+STORAGE_TARGET="$APP_DIR/storage/app/public"
+if [ -d "$STORAGE_TARGET" ]; then
+    if [ -L "$PUBLIC_DIR/storage" ]; then
+        echo "   storage is already a symlink -> $(readlink "$PUBLIC_DIR/storage")"
+    elif [ -d "$PUBLIC_DIR/storage" ] && [ -z "$(find "$PUBLIC_DIR/storage" -mindepth 1 ! -name '.gitignore' -print -quit)" ]; then
+        # Older hand uploads left an empty storage/ directory here. It would
+        # shadow the symlink, so move it aside rather than deleting it.
+        BACKUP="$APP_DIR/storage-public-html.bak.$(date +%s)"
+        mv "$PUBLIC_DIR/storage" "$BACKUP"
+        ln -sfn "$STORAGE_TARGET" "$PUBLIC_DIR/storage"
+        echo "   storage -> $STORAGE_TARGET (old empty directory kept at $BACKUP)"
+    elif [ -e "$PUBLIC_DIR/storage" ]; then
+        echo "   storage exists and is not empty - left alone"
+        echo "        (move it aside if uploads should be served from storage/app/public)"
+    else
+        ln -sfn "$STORAGE_TARGET" "$PUBLIC_DIR/storage"
+        echo "   storage -> $STORAGE_TARGET"
+    fi
+else
+    echo "   !! missing app storage dir: $STORAGE_TARGET"
+fi
+
 # Hand-maintained files that predate the git workflow and are not part of a push.
 for f in index.php .htaccess; do
     [ -f "$PUBLIC_DIR/$f" ] || echo "   !! $PUBLIC_DIR/$f is missing - see DEPLOY_HOSTINGER.md section 3"
 done
-if [ ! -e "$PUBLIC_DIR/storage" ]; then
-    echo "   !! $PUBLIC_DIR/storage is missing - run 'php artisan storage:link' in the app"
-fi
 
 exit 0

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, ref, watch } from 'vue';
+import { computed, inject, onBeforeUnmount, ref, watch } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { route } from '@ziggy';
 import OmniLayout from '@/Layouts/OmniLayout.vue';
@@ -20,6 +20,8 @@ const toast = inject('toast', () => {});
 const workspaceSlug = computed(() => page.props.workspace?.slug);
 
 const showModal = ref(false);
+const headerImagePreview = ref('');
+const headerImageInput = ref(null);
 
 const form = useForm({
     name: '',
@@ -31,6 +33,7 @@ const form = useForm({
     channel_account_id: null,
     segment_id: null,
     scheduled_at: '',
+    header_image: null,
 });
 
 // Funnel types whose trigger is a keyword — the modal only asks for keywords then.
@@ -42,6 +45,12 @@ const approvedTemplates = computed(() => props.broadcast.templates ?? []);
 const selectedTemplate = computed(
     () => approvedTemplates.value.find((template) => template.id === form.template_id) ?? null,
 );
+
+// Image-header templates need a send-time image, unless the template has a
+// sample image the operator is happy to reuse for this campaign.
+const templateNeedsImage = computed(() => Boolean(selectedTemplate.value?.requiresImage));
+const templateSampleImage = computed(() => selectedTemplate.value?.headerImageUrl ?? null);
+const headerImageRequired = computed(() => templateNeedsImage.value && !templateSampleImage.value);
 
 // Audience: everyone opted in, or one of the saved segments.
 const savedSegments = computed(() => props.broadcast.segments ?? []);
@@ -60,6 +69,8 @@ const sendingAccount = computed(() => {
 
 // When the operator picks a template, size the variable inputs to its {{n}} count.
 watch(selectedTemplate, (template) => {
+    clearHeaderImage();
+
     if (!template) {
         form.template_variables = [];
 
@@ -100,10 +111,38 @@ function formatWhen(iso) {
     });
 }
 
+function clearHeaderImage() {
+    if (headerImagePreview.value) {
+        URL.revokeObjectURL(headerImagePreview.value);
+    }
+
+    headerImagePreview.value = '';
+    form.header_image = null;
+
+    if (headerImageInput.value) {
+        headerImageInput.value.value = '';
+    }
+}
+
+function chooseHeaderImage(event) {
+    const file = event.target.files?.[0] ?? null;
+
+    if (headerImagePreview.value) {
+        URL.revokeObjectURL(headerImagePreview.value);
+    }
+
+    form.header_image = file;
+    headerImagePreview.value = file ? URL.createObjectURL(file) : '';
+    form.clearErrors('header_image');
+}
+
+onBeforeUnmount(clearHeaderImage);
+
 function openModal() {
     form.clearErrors();
     form.reset();
     form.template_variables = [];
+    clearHeaderImage();
     showModal.value = true;
 }
 
@@ -114,10 +153,18 @@ function insertTag(index, tag) {
 }
 
 function submit() {
+    if (isBroadcast.value && headerImageRequired.value && !form.header_image) {
+        form.setError('header_image', 'Upload the image this broadcast should send.');
+
+        return;
+    }
+
     form.post(route('campaigns.store', { workspace: workspaceSlug.value }), {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             showModal.value = false;
+            clearHeaderImage();
             form.reset();
         },
     });
@@ -402,6 +449,43 @@ function setStatus(campaign, next) {
                                 </p>
                             </div>
 
+                            <div v-if="selectedTemplate && templateNeedsImage" class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <div class="mb-2 flex items-center justify-between gap-3">
+                                    <label class="font-semibold text-slate-700">
+                                        Campaign image
+                                        <span class="font-normal text-slate-400">{{ headerImageRequired ? '(required)' : '(optional)' }}</span>
+                                    </label>
+                                </div>
+
+                                <div
+                                    v-if="headerImagePreview || templateSampleImage"
+                                    class="mb-2 overflow-hidden rounded-lg border border-slate-200 bg-white"
+                                >
+                                    <img
+                                        :src="headerImagePreview || templateSampleImage"
+                                        alt="Campaign image preview"
+                                        class="h-32 w-full object-cover"
+                                    />
+                                    <p v-if="!headerImagePreview && templateSampleImage" class="px-2 py-1 text-[10px] text-slate-400">
+                                        Using the template's sample image. Upload a file to send a different one.
+                                    </p>
+                                </div>
+
+                                <input
+                                    ref="headerImageInput"
+                                    type="file"
+                                    accept="image/jpeg,image/png"
+                                    class="block w-full cursor-pointer rounded-lg border border-slate-200 bg-white text-[11px] text-slate-500 file:mr-3 file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-[11px] file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
+                                    @change="chooseHeaderImage"
+                                />
+                                <p class="mt-1 text-[11px] text-slate-400">
+                                    JPEG or PNG, up to 5 MB.
+                                    <template v-if="templateSampleImage">Leave blank to reuse the sample.</template>
+                                    <template v-else>This template has no sample, so every campaign must upload one.</template>
+                                </p>
+                                <p v-if="form.errors.header_image" class="mt-1 text-[11px] text-rose-600">{{ form.errors.header_image }}</p>
+                            </div>
+
                             <div v-if="selectedTemplate" class="space-y-2">
                                 <div v-for="(value, index) in form.template_variables" :key="index">
                                     <label class="mb-1 block font-semibold text-slate-700">
@@ -433,8 +517,14 @@ function setStatus(campaign, next) {
 
                             <div>
                                 <label class="mb-1 block font-semibold text-slate-700">Preview</label>
-                                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
-                                    <p class="whitespace-pre-line">{{ templatePreview || 'Select a template to preview it.' }}</p>
+                                <div class="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[11px] leading-relaxed text-slate-600">
+                                    <img
+                                        v-if="headerImagePreview || templateSampleImage"
+                                        :src="headerImagePreview || templateSampleImage"
+                                        alt="Campaign image preview"
+                                        class="max-h-40 w-full object-cover"
+                                    />
+                                    <p class="whitespace-pre-line px-3 py-2">{{ templatePreview || 'Select a template to preview it.' }}</p>
                                 </div>
                             </div>
 
@@ -525,7 +615,7 @@ function setStatus(campaign, next) {
                         <button
                             type="submit"
                             class="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
-                            :disabled="form.processing || (isBroadcast && (!form.template_id || !approvedTemplates.length))"
+                            :disabled="form.processing || (isBroadcast && (!form.template_id || !approvedTemplates.length || (headerImageRequired && !form.header_image)))"
                         >
                             <i class="fa-solid" :class="form.processing ? 'fa-circle-notch fa-spin' : isScheduled ? 'fa-clock' : 'fa-rocket'"></i>
                             {{ isScheduled ? 'Schedule Campaign' : 'Launch Campaign' }}

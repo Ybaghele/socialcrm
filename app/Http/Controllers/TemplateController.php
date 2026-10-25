@@ -9,6 +9,7 @@ use App\Services\Meta\TemplateCreator;
 use App\Services\Meta\TemplateDefinition;
 use App\Services\Meta\TemplateDeleter;
 use App\Services\Meta\TemplateSync;
+use App\Support\HeaderImage;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -49,6 +50,8 @@ class TemplateController extends Controller
                 'channelAccount' => $template->channelAccount?->name,
                 'channelAccountId' => $template->channel_account_id,
                 'header' => $template->headerText(),
+                'requiresImage' => $template->requiresImageHeader(),
+                'headerImageUrl' => $template->headerImageUrl(),
                 'body' => $template->bodyText(),
                 'footer' => $template->footerText(),
                 'buttons' => $template->buttons(),
@@ -100,7 +103,9 @@ class TemplateController extends Controller
             'name' => ['required', 'string', 'max:512', 'regex:/^[a-z0-9_]+$/'],
             'category' => ['required', Rule::in(['marketing', 'utility', 'authentication', 'MARKETING', 'UTILITY', 'AUTHENTICATION'])],
             'language' => ['required', 'string', 'max:10'],
+            'header_type' => ['nullable', Rule::in(['none', 'text', 'image'])],
             'header_text' => ['nullable', 'string', 'max:60'],
+            'header_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:5120'],
             'body' => ['required', 'string', 'max:1024'],
             'footer_text' => ['nullable', 'string', 'max:60'],
             'buttons' => ['nullable', 'array', 'max:10'],
@@ -109,6 +114,28 @@ class TemplateController extends Controller
             'buttons.*.url' => ['nullable', 'string', 'max:2000'],
             'buttons.*.phone_number' => ['nullable', 'string', 'max:20'],
         ]);
+
+        $headerImage = $request->file('header_image');
+        $headerType = $validated['header_type'] ?? null;
+        $headerText = trim((string) ($validated['header_text'] ?? ''));
+
+        if ($headerImage && $headerText !== '') {
+            throw ValidationException::withMessages([
+                'header_image' => 'Use either a text header or an image header, not both.',
+            ]);
+        }
+
+        if ($headerImage && $headerType === 'text') {
+            throw ValidationException::withMessages([
+                'header_image' => 'Switch the header type to Image before uploading a header image.',
+            ]);
+        }
+
+        if ($headerType === 'image' && ! $headerImage) {
+            throw ValidationException::withMessages([
+                'header_image' => 'Choose a JPEG or PNG image for this template header.',
+            ]);
+        }
 
         $components = $definition->components($validated);
 
@@ -133,7 +160,21 @@ class TemplateController extends Controller
             'language' => $validated['language'],
             'components' => $components,
         ];
+
+        $headerImagePath = null;
+
         try {
+            if ($headerImage) {
+                $headerImagePath = HeaderImage::store($headerImage, 'template-media/'.$workspace->getKey());
+                $handle = $creator->uploadImage(
+                    $account,
+                    HeaderImage::path($headerImagePath),
+                    (string) $headerImage->getMimeType(),
+                    $headerImage->getClientOriginalName(),
+                );
+                $payload['components'] = $definition->components($validated, $handle);
+            }
+
             $meta = $creator->create($account, $payload);
 
             // Check if Meta rejected it without throwing a hard exception
@@ -147,14 +188,22 @@ class TemplateController extends Controller
                     ?? $metaError['message']
                     ?? 'Unknown validation rejection from Meta API.';
 
+                HeaderImage::delete($headerImagePath);
+
                 return back()->with('error', 'Meta rejected this template: '.$errorMessage);
             }
 
         } catch (ConnectionException $e) {
+            HeaderImage::delete($headerImagePath);
+
             return back()->with('error', 'Could not reach Meta: '.$e->getMessage());
         } catch (ValidationException $e) {
+            HeaderImage::delete($headerImagePath);
+
             throw $e;
         } catch (Throwable $e) {
+            HeaderImage::delete($headerImagePath);
+
             return back()->with('error', 'Meta rejected this template: '.$creator->reason($e));
         }
 
@@ -167,6 +216,7 @@ class TemplateController extends Controller
             'status' => $meta['status'] ?: 'pending',
             'meta_template_id' => $meta['id'] ?: null,
             'components' => $payload['components'],
+            'header_image_path' => $headerImagePath,
         ]);
 
         return back()->with('success', 'Template submitted to Meta for review. It will appear here once status updates come in or after syncing.');

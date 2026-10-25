@@ -10,6 +10,7 @@ use App\Models\Contact;
 use App\Models\MessageTemplate;
 use App\Models\Segment;
 use App\Services\Audiences\SegmentQuery;
+use App\Support\HeaderImage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -110,6 +111,8 @@ class CampaignController extends Controller
                         'body' => $template->bodyText(),
                         'variables' => $template->placeholderCount(),
                         'channelAccountId' => $template->channel_account_id,
+                        'requiresImage' => $template->requiresImageHeader(),
+                        'headerImageUrl' => $template->headerImageUrl(),
                     ])
                     ->all(),
                 'accounts' => ChannelAccount::query()
@@ -146,6 +149,7 @@ class CampaignController extends Controller
             'template_variables' => ['nullable', 'array'],
             'template_variables.*' => ['nullable', 'string', 'max:500'],
             'channel_account_id' => ['nullable', 'integer'],
+            'header_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:5120'],
             // Optional audience + schedule for a broadcast.
             'segment_id' => ['nullable', 'integer'],
             'scheduled_at' => ['nullable', 'date'],
@@ -257,6 +261,27 @@ class CampaignController extends Controller
             }
         }
 
+        $headerImage = $request->file('header_image');
+        $requiresImage = $template->requiresImageHeader();
+
+        if (! $requiresImage && $headerImage) {
+            throw ValidationException::withMessages([
+                'header_image' => 'This template does not use an image header.',
+            ]);
+        }
+
+        if ($requiresImage && ! $headerImage && ! $template->headerImageUrl()) {
+            throw ValidationException::withMessages([
+                'header_image' => 'Upload the image this broadcast should send. The template has no sample image to fall back to.',
+            ]);
+        }
+
+        $headerImagePath = null;
+
+        if ($requiresImage && $headerImage) {
+            $headerImagePath = HeaderImage::store($headerImage, 'campaign-media/'.$template->workspace_id);
+        }
+
         // Pad/trim the operator's values so the count always matches the template.
         $expected = $template->placeholderCount();
         $variables = array_slice(array_pad(array_values($data['template_variables'] ?? []), $expected, ''), 0, $expected);
@@ -278,6 +303,7 @@ class CampaignController extends Controller
             'channel_account_id' => $account->id,
             'message_template_id' => $template->id,
             'template_variables' => $variables,
+            'header_image_path' => $headerImagePath,
         ]);
 
         // The audience size comes from the same query the enrolment job will use.
@@ -342,6 +368,7 @@ class CampaignController extends Controller
             'trigger' => $this->triggerLabel($campaign),
             'target' => $campaign->audience_description['label'] ?? $campaign->segment?->name ?? 'All contacts',
             'template' => $campaign->template?->name,
+            'headerImageUrl' => $campaign->headerImageUrl(),
             'enrolled' => (int) $campaign->enrolled_count,
             'delivered' => (int) $campaign->delivered_count,
             'replied' => (int) $campaign->replied_count,

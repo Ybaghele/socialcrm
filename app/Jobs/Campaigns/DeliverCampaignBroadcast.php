@@ -33,7 +33,7 @@ use Throwable;
  */
 class DeliverCampaignBroadcast implements ShouldQueue
 {
-    use InteractsWithQueue, QueueableTrait, SerializesModels, Queueable;
+    use InteractsWithQueue, Queueable, QueueableTrait, SerializesModels;
 
     public int $tries = 3;
 
@@ -43,9 +43,7 @@ class DeliverCampaignBroadcast implements ShouldQueue
         return [30, 120];
     }
 
-    public function __construct(public int $enrollmentId)
-    {
-    }
+    public function __construct(public int $enrollmentId) {}
 
     public function handle(SendOutboundMessage $send): void
     {
@@ -97,6 +95,7 @@ class DeliverCampaignBroadcast implements ShouldQueue
                     null,
                     $template,
                     $this->variables($campaign, $contact, $template),
+                    $campaign->headerImageUrl(),
                 );
             } catch (InsufficientBalance $e) {
                 // Out of wallet: pause the campaign so we stop hammering Meta, and

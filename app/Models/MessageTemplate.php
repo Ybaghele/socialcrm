@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToWorkspace;
 use App\Services\Outbound\TemplateRenderer;
+use App\Support\HeaderImage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -42,6 +43,18 @@ class MessageTemplate extends Model
     public function headerText(): ?string
     {
         return TemplateRenderer::headerText($this->components ?? []);
+    }
+
+    /** True when Meta will require an image parameter every time this is sent. */
+    public function requiresImageHeader(): bool
+    {
+        return TemplateRenderer::hasImageHeader($this->components ?? []);
+    }
+
+    /** The sample image uploaded at creation, when this template was built here. */
+    public function headerImageUrl(): ?string
+    {
+        return HeaderImage::url($this->header_image_path);
     }
 
     public function footerText(): ?string

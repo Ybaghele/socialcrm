@@ -108,6 +108,25 @@ class InboxPageTest extends TestCase
             );
     }
 
+    public function test_a_template_image_is_exposed_to_the_inbox_thread(): void
+    {
+        Tenancy::run($this->workspace, fn () => Message::create([
+            'conversation_id' => $this->conversation->id,
+            'direction' => 'outbound',
+            'sender_type' => 'bot',
+            'type' => 'template',
+            'body' => 'Hi Ananya, enjoy our festive offer!',
+            'payload' => ['template' => ['header_image_url' => 'https://cdn.example.com/header.jpg']],
+        ]));
+
+        $this->actingAs($this->member)
+            ->get('/w/acme/inbox?conversation='.$this->conversation->id)
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('messages.1.imageUrl', 'https://cdn.example.com/header.jpg')
+            );
+    }
+
     public function test_a_long_thread_returns_the_latest_two_hundred_messages(): void
     {
         Tenancy::run($this->workspace, function () {

@@ -53,12 +53,45 @@
                             <div class="flex items-start justify-between gap-3">
                                 <div>
                                     <label class="text-xs font-semibold text-slate-700">Header <span class="font-normal text-slate-400">(optional)</span></label>
-                                    <p class="mt-0.5 text-[11px] text-slate-400">A short title shown above the message.</p>
+                                    <p class="mt-0.5 text-[11px] text-slate-400">Add a short title or an image above the message.</p>
                                 </div>
-                                <span class="text-[10px] tabular-nums" :class="header.length > 60 ? 'text-rose-600' : 'text-slate-400'">{{ header.length }}/60</span>
+                                <span v-if="headerMode === 'text'" class="text-[10px] tabular-nums" :class="header.length > 60 ? 'text-rose-600' : 'text-slate-400'">{{ header.length }}/60</span>
                             </div>
-                            <input v-model="header" maxlength="60" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Festive offer" />
-                            <p class="mt-1 text-[11px] text-slate-400">Static text only. Variables are filled in the body.</p>
+
+                            <div class="mt-3 inline-flex rounded-lg bg-slate-100 p-0.5 text-[11px] font-semibold">
+                                <button
+                                    v-for="option in headerModes"
+                                    :key="option.value"
+                                    type="button"
+                                    class="rounded-md px-3 py-1.5 transition"
+                                    :class="headerMode === option.value ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'"
+                                    @click="setHeaderMode(option.value)"
+                                >
+                                    {{ option.label }}
+                                </button>
+                            </div>
+
+                            <div v-if="headerMode === 'text'" class="mt-2">
+                                <input v-model="header" maxlength="60" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Festive offer" />
+                                <p class="mt-1 text-[11px] text-slate-400">Static text only. Variables are filled in the body.</p>
+                            </div>
+
+                            <div v-else-if="headerMode === 'image'" class="mt-2 space-y-2">
+                                <input
+                                    ref="headerImageInput"
+                                    type="file"
+                                    accept="image/jpeg,image/png"
+                                    class="block w-full cursor-pointer rounded-lg border border-slate-200 text-xs text-slate-500 file:mr-3 file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
+                                    @change="chooseHeaderImage"
+                                />
+                                <div v-if="headerImagePreview" class="overflow-hidden rounded-lg border border-slate-200">
+                                    <img :src="headerImagePreview" alt="Template header preview" class="h-36 w-full object-cover" />
+                                </div>
+                                <p class="text-[11px] text-slate-400">
+                                    JPEG or PNG, up to 5 MB. Meta reviews this sample; each campaign can still send its own image.
+                                </p>
+                                <p v-if="errors.header_image" class="text-[11px] text-rose-600">{{ errors.header_image }}</p>
+                            </div>
                         </section>
 
                         <section>
@@ -166,6 +199,12 @@
                         <div class="rounded-[1.2rem] bg-[#efeae2] p-3">
                             <div class="mb-2 rounded-lg bg-[#075e54] px-2 py-1 text-[10px] text-white">SocialDesk</div>
                             <div class="max-w-[85%] rounded-lg bg-[#d9fdd3] p-2 text-xs text-slate-800">
+                                <img
+                                    v-if="headerMode === 'image' && headerImagePreview"
+                                    :src="headerImagePreview"
+                                    alt="Template header preview"
+                                    class="mb-1 max-h-40 w-full rounded object-cover"
+                                />
                                 <p v-if="header.trim()" class="mb-1 whitespace-pre-wrap font-bold">{{ header }}</p>
                                 <p class="whitespace-pre-wrap">{{ body || 'Your message' }}</p>
                                 <p v-if="footer.trim()" class="mt-1 whitespace-pre-wrap text-[10px] text-slate-500">{{ footer }}</p>
@@ -191,7 +230,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { route } from '@ziggy';
 import Modal from '@/Components/Modal.vue';
@@ -209,13 +248,24 @@ const name = ref('');
 const category = ref('marketing');
 const language = ref('en_US');
 const accountId = ref(null);
+const headerMode = ref('none');
 const header = ref('');
+const headerImage = ref(null);
+const headerImagePreview = ref('');
+const headerImageInput = ref(null);
 const body = ref('');
 const footer = ref('');
 const buttons = ref([]);
 const bodyInput = ref(null);
 const errors = ref({});
 const submitting = ref(false);
+
+const headerModes = [
+    { value: 'none', label: 'No header' },
+    { value: 'text', label: 'Text' },
+    { value: 'image', label: 'Image' },
+];
+const MAX_HEADER_IMAGE_BYTES = 5 * 1024 * 1024;
 
 let buttonSequence = 0;
 
@@ -267,6 +317,54 @@ const orderedButtons = computed(() => [
 
 function sanitize(value) {
     return value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '').replace(/_{2,}/g, '_').slice(0, 512);
+}
+
+function clearHeaderImage() {
+    if (headerImagePreview.value) {
+        URL.revokeObjectURL(headerImagePreview.value);
+    }
+
+    headerImage.value = null;
+    headerImagePreview.value = '';
+
+    if (headerImageInput.value) {
+        headerImageInput.value.value = '';
+    }
+}
+
+function setHeaderMode(mode) {
+    if (headerMode.value === mode) {
+        return;
+    }
+
+    headerMode.value = mode;
+
+    if (mode !== 'text') {
+        header.value = '';
+    }
+
+    if (mode !== 'image') {
+        clearHeaderImage();
+    }
+
+    const nextErrors = { ...errors.value };
+    delete nextErrors.header_image;
+    errors.value = nextErrors;
+}
+
+function chooseHeaderImage(event) {
+    const file = event.target.files?.[0] ?? null;
+
+    if (headerImagePreview.value) {
+        URL.revokeObjectURL(headerImagePreview.value);
+    }
+
+    headerImage.value = file;
+    headerImagePreview.value = file ? URL.createObjectURL(file) : '';
+
+    const nextErrors = { ...errors.value };
+    delete nextErrors.header_image;
+    errors.value = nextErrors;
 }
 
 function addVar() {
@@ -333,13 +431,17 @@ function close() {
         category.value = 'marketing';
         language.value = 'en_US';
         accountId.value = null;
+        headerMode.value = 'none';
         header.value = '';
+        clearHeaderImage();
         body.value = '';
         footer.value = '';
         buttons.value = [];
         errors.value = {};
     }, 150);
 }
+
+onBeforeUnmount(clearHeaderImage);
 
 function buildButtons() {
     return orderedButtons.value.map((button) => {
@@ -382,6 +484,16 @@ function validate() {
         nextErrors.channel_account_id = 'Select a WhatsApp account.';
     }
 
+    if (headerMode.value === 'image') {
+        if (!headerImage.value) {
+            nextErrors.header_image = 'Choose a JPEG or PNG image for this template header.';
+        } else if (!['image/jpeg', 'image/png'].includes(headerImage.value.type)) {
+            nextErrors.header_image = 'Use a JPEG or PNG image.';
+        } else if (headerImage.value.size > MAX_HEADER_IMAGE_BYTES) {
+            nextErrors.header_image = 'The image must be 5 MB or smaller.';
+        }
+    }
+
     if (!body.value.trim()) {
         nextErrors.body = 'A message body is required.';
     } else if (body.value.length > 1024) {
@@ -397,7 +509,7 @@ function validate() {
         }
     }
 
-    if (/\{\{\d+\}\}/.test(header.value)) {
+    if (headerMode.value === 'text' && /\{\{\d+\}\}/.test(header.value)) {
         nextErrors.header_text = 'Header variables are not supported yet.';
     }
 
@@ -458,12 +570,15 @@ function submit() {
             name: name.value,
             category: category.value,
             language: language.value,
-            header_text: header.value.trim() || null,
+            header_type: headerMode.value,
+            header_text: headerMode.value === 'text' ? header.value.trim() || null : null,
+            header_image: headerMode.value === 'image' ? headerImage.value : null,
             body: body.value.trim(),
             footer_text: footer.value.trim() || null,
             buttons: buildButtons(),
         },
         {
+            forceFormData: true,
             preserveScroll: true,
             onSuccess: () => close(),
             onError: (routeErrors) => {

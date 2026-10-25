@@ -3,8 +3,11 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToWorkspace;
+use App\Support\HeaderImage;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\{BelongsTo, BelongsToMany, HasMany};
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Campaign extends Model
@@ -12,21 +15,63 @@ class Campaign extends Model
     use BelongsToWorkspace, SoftDeletes;
 
     protected $guarded = [];
+
     protected $casts = [
         'audience_description' => 'array',
         'template_variables' => 'array',
         'scheduled_at' => 'datetime', 'started_at' => 'datetime', 'ended_at' => 'datetime',
     ];
 
-    public function channelAccount(): BelongsTo { return $this->belongsTo(ChannelAccount::class); }
-    public function segment(): BelongsTo { return $this->belongsTo(Segment::class); }
-    public function template(): BelongsTo { return $this->belongsTo(MessageTemplate::class, 'message_template_id'); }
-    public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
-    public function triggers(): HasMany { return $this->hasMany(CampaignTrigger::class); }
-    public function steps(): HasMany { return $this->hasMany(CampaignStep::class)->orderBy('position'); }
-    public function enrollments(): HasMany { return $this->hasMany(CampaignEnrollment::class); }
-    public function contacts(): BelongsToMany { return $this->belongsToMany(Contact::class, 'campaign_enrollments')->withPivot(['status', 'delivered_at', 'replied_at', 'won_at'])->withTimestamps(); }
-    public function messages(): HasMany { return $this->hasMany(Message::class); }
+    public function channelAccount(): BelongsTo
+    {
+        return $this->belongsTo(ChannelAccount::class);
+    }
+
+    public function segment(): BelongsTo
+    {
+        return $this->belongsTo(Segment::class);
+    }
+
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(MessageTemplate::class, 'message_template_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function triggers(): HasMany
+    {
+        return $this->hasMany(CampaignTrigger::class);
+    }
+
+    public function steps(): HasMany
+    {
+        return $this->hasMany(CampaignStep::class)->orderBy('position');
+    }
+
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(CampaignEnrollment::class);
+    }
+
+    public function contacts(): BelongsToMany
+    {
+        return $this->belongsToMany(Contact::class, 'campaign_enrollments')->withPivot(['status', 'delivered_at', 'replied_at', 'won_at'])->withTimestamps();
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class);
+    }
+
+    /** The image this campaign chose for an image-header template. */
+    public function headerImageUrl(): ?string
+    {
+        return HeaderImage::url($this->header_image_path);
+    }
 
     // Reply rate shown on the campaign card.
     public function getReplyRateAttribute(): string

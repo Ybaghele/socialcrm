@@ -176,6 +176,110 @@ class TemplateCreator
         }
     }
 
+    /**
+     * Upload a template sample image through Meta's Resumable Upload API.
+     *
+     * Template media headers do not accept an arbitrary public URL at creation
+     * time: Meta wants an asset handle produced by an upload session. Campaign
+     * sends, by contrast, do accept a public URL, which is why the sample and the
+     * per-campaign image are stored separately.
+     */
+    public function uploadImage(ChannelAccount $account, string $path, string $mimeType, string $fileName): string
+    {
+        $appId = trim((string) config('omniflow.meta.app_id'));
+
+        if ($appId === '') {
+            throw new \InvalidArgumentException('Set META_APP_ID before submitting a template with an image header.');
+        }
+
+        if (! $account->access_token) {
+            throw new \InvalidArgumentException('No access token configured for this channel.');
+        }
+
+        if (! is_file($path)) {
+            throw new \InvalidArgumentException('The uploaded image could not be read.');
+        }
+
+        $length = filesize($path);
+
+        if ($length === false) {
+            throw new \InvalidArgumentException('The uploaded image size could not be read.');
+        }
+
+        $base = rtrim((string) config('omniflow.meta.hosts.whatsapp', 'https://graph.facebook.com'), '/');
+        $version = trim((string) config('omniflow.meta.graph_version', 'v22.0'), '/');
+        $token = ChannelAccount::normaliseToken($account->access_token);
+
+        if (! $token) {
+            throw new \InvalidArgumentException('No access token configured for this channel.');
+        }
+
+        $proof = $this->appSecretProof($token);
+
+        $params = [
+            'file_name' => basename($fileName),
+            'file_length' => $length,
+            'file_type' => $mimeType,
+        ];
+
+        if ($proof !== null) {
+            $params['appsecret_proof'] = $proof;
+        }
+
+        $session = Http::withToken($token)
+            ->timeout(30)
+            ->post("{$base}/{$version}/{$appId}/uploads", $params)
+            ->throw();
+
+        $sessionId = trim((string) $session->json('id'));
+
+        if ($sessionId === '') {
+            throw new \RuntimeException('Meta did not return an upload session for the image.');
+        }
+
+        $contents = file_get_contents($path);
+
+        if ($contents === false) {
+            throw new \InvalidArgumentException('The uploaded image could not be read.');
+        }
+
+        $url = "{$base}/{$version}/{$sessionId}";
+
+        if ($proof !== null) {
+            $url .= '?appsecret_proof='.urlencode($proof);
+        }
+
+        // The upload endpoint expects the raw bytes and an explicit offset. It
+        // also wants the `OAuth` prefix rather than a Bearer token.
+        $response = Http::withHeaders([
+            'Authorization' => 'OAuth '.$token,
+            'file_offset' => '0',
+        ])
+            ->withBody($contents, $mimeType)
+            ->timeout(60)
+            ->post($url)
+            ->throw();
+
+        $handle = trim((string) $response->json('h'));
+
+        if ($handle === '') {
+            throw new \RuntimeException('Meta did not return an image handle.');
+        }
+
+        return $handle;
+    }
+
+    private function appSecretProof(string $token): ?string
+    {
+        $secret = config('services.meta.app_secret') ?? config('omniflow.meta.app_secret');
+
+        if (! is_string($secret) || $secret === '') {
+            return null;
+        }
+
+        return hash_hmac('sha256', $token, $secret);
+    }
+
     // public function reason(Throwable $e): string
     // {
     //     if ($e instanceof RequestException && $e->response) {

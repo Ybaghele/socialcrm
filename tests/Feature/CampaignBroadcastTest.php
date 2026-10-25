@@ -18,7 +18,9 @@ use App\Models\Wallet;
 use App\Models\Workspace;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -31,8 +33,11 @@ class CampaignBroadcastTest extends TestCase
     use RefreshDatabase;
 
     private Workspace $workspace;
+
     private User $owner;
+
     private ChannelAccount $account;
+
     private MessageTemplate $template;
 
     protected function setUp(): void
@@ -66,6 +71,25 @@ class CampaignBroadcastTest extends TestCase
                 'components' => [['type' => 'BODY', 'text' => 'Hi {{1}}, enjoy our festive offer!']],
             ]);
         });
+    }
+
+    private function imageTemplate(): MessageTemplate
+    {
+        return Tenancy::run($this->workspace, fn () => MessageTemplate::create([
+            'channel_account_id' => $this->account->id,
+            'name' => 'festive_image_offer',
+            'language' => 'en',
+            'category' => 'marketing',
+            'status' => 'approved',
+            'components' => [
+                [
+                    'type' => 'HEADER',
+                    'format' => 'IMAGE',
+                    'example' => ['header_handle' => ['4::sample']],
+                ],
+                ['type' => 'BODY', 'text' => 'Hi {{1}}, enjoy our festive offer!'],
+            ],
+        ]));
     }
 
     private function contact(string $name, string $phone, bool $optedIn = true): Contact
@@ -147,6 +171,92 @@ class CampaignBroadcastTest extends TestCase
         $this->assertSame($this->account->id, $campaign->channel_account_id);
         $this->assertSame(['{{first_name}}'], $campaign->template_variables);
         $this->assertSame('active', $campaign->status);
+    }
+
+    public function test_a_campaign_can_choose_its_own_image_for_an_image_template(): void
+    {
+        Storage::fake('public');
+        $template = $this->imageTemplate();
+        $this->contact('Ananya Sharma', '+919820044821', true);
+
+        $this->actingAs($this->owner)
+            ->post('/w/acme/campaigns', [
+                'name' => 'Image blast',
+                'funnel' => 'whatsapp_broadcast',
+                'template_id' => $template->id,
+                'template_variables' => ['{{first_name}}'],
+                'header_image' => UploadedFile::fake()->image('campaign.jpg', 1200, 630),
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $campaign = Tenancy::run($this->workspace, fn () => Campaign::firstWhere('name', 'Image blast'));
+
+        $this->assertNotNull($campaign);
+        $this->assertNotNull($campaign->header_image_path);
+        Storage::disk('public')->assertExists($campaign->header_image_path);
+
+        (new ProcessCampaignEnrollments)->handle();
+
+        $campaign->refresh();
+        $this->assertSame(1, (int) $campaign->delivered_count);
+
+        $message = Tenancy::run($this->workspace, fn () => Message::where('campaign_id', $campaign->id)->first());
+        $imageUrl = $campaign->headerImageUrl();
+
+        $this->assertNotNull($message);
+        $this->assertSame($imageUrl, $message->payload['template']['header_image_url']);
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/PN1/messages')
+            && $request['template']['components'][0] === [
+                'type' => 'header',
+                'parameters' => [[
+                    'type' => 'image',
+                    'image' => ['link' => $imageUrl],
+                ]],
+            ]);
+    }
+
+    public function test_an_image_template_without_a_sample_requires_a_campaign_image(): void
+    {
+        Storage::fake('public');
+        $template = $this->imageTemplate();
+
+        $this->actingAs($this->owner)
+            ->post('/w/acme/campaigns', [
+                'name' => 'No image',
+                'funnel' => 'whatsapp_broadcast',
+                'template_id' => $template->id,
+                'template_variables' => ['{{first_name}}'],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('header_image');
+
+        $this->assertSame(0, Campaign::withoutGlobalScopes()->count());
+    }
+
+    public function test_a_campaign_falls_back_to_the_template_sample_image(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('template-media/sample.jpg', 'image-bytes');
+
+        $template = $this->imageTemplate();
+        $template->update(['header_image_path' => 'template-media/sample.jpg']);
+
+        $this->contact('Ananya Sharma', '+919820044821', true);
+
+        $campaign = $this->makeBroadcast(['message_template_id' => $template->id]);
+
+        (new ProcessCampaignEnrollments)->handle();
+
+        $message = Tenancy::run($this->workspace, fn () => Message::where('campaign_id', $campaign->id)->first());
+        $imageUrl = $template->headerImageUrl();
+
+        $this->assertNotNull($message);
+        $this->assertSame($imageUrl, $message->payload['template']['header_image_url']);
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/PN1/messages')
+            && $request['template']['components'][0]['parameters'][0]['image']['link'] === $imageUrl);
     }
 
     public function test_processing_enrols_only_opted_in_contacts_then_delivers(): void

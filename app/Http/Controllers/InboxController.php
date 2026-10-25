@@ -228,17 +228,22 @@ class InboxController extends Controller
             ->get()
             ->reverse()
             ->values()
-            ->map(fn (Message $message) => [
-                'id' => $message->id,
-                'direction' => $message->direction,
-                'senderType' => $message->sender_type,
-                'body' => $message->body,
-                'type' => $message->type,
-                'status' => $message->status,
-                'author' => $message->author?->name ?? ($message->sender_type === 'bot' ? 'Automation' : null),
-                'createdAt' => $message->created_at?->toIso8601String(),
-                'isInternal' => $message->direction === 'internal',
-            ])
+            ->map(function (Message $message) {
+                $imageUrl = data_get($message->payload, 'template.header_image_url');
+
+                return [
+                    'id' => $message->id,
+                    'direction' => $message->direction,
+                    'senderType' => $message->sender_type,
+                    'body' => $message->body,
+                    'imageUrl' => is_string($imageUrl) ? $imageUrl : null,
+                    'type' => $message->type,
+                    'status' => $message->status,
+                    'author' => $message->author?->name ?? ($message->sender_type === 'bot' ? 'Automation' : null),
+                    'createdAt' => $message->created_at?->toIso8601String(),
+                    'isInternal' => $message->direction === 'internal',
+                ];
+            })
             ->all();
     }
 }
