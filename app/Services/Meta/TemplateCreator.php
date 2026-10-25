@@ -71,9 +71,9 @@ class TemplateCreator
         $url = "{$base}/{$version}/{$account->business_account_id}/message_templates";
 
         $body = [
-            'name' => $payload['name'] ?? null,
-            'category' => $payload['category'] ?? null,
-            'language' => $payload['language'] ?? null,
+            'name' => strtolower((string) ($payload['name'] ?? '')),
+            'category' => strtoupper((string) ($payload['category'] ?? 'MARKETING')),
+            'language' => (string) ($payload['language'] ?? 'en_US'),
             'components' => $payload['components'] ?? [],
             'allow_category_change' => true,
         ];
