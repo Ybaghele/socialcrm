@@ -138,6 +138,7 @@ class ChannelController extends Controller
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:120'],
             'handle' => ['sometimes', 'nullable', 'string', 'max:190'],
+            'business_account_id' => ['sometimes', 'nullable', 'string', 'max:190'],
             'access_token' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'token_expires_at' => ['sometimes', 'nullable', 'date'],
             'status' => ['sometimes', Rule::in(['connected', 'disconnected'])],
@@ -149,6 +150,10 @@ class ChannelController extends Controller
 
         if (array_key_exists('handle', $data)) {
             $channelAccount->handle = $data['handle'];
+        }
+
+        if (array_key_exists('business_account_id', $data)) {
+            $channelAccount->business_account_id = $data['business_account_id'];
         }
 
         if (array_key_exists('token_expires_at', $data)) {

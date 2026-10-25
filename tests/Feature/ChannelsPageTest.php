@@ -25,6 +25,7 @@ class ChannelsPageTest extends TestCase
     use RefreshDatabase;
 
     private User $owner;
+
     private Workspace $workspace;
 
     protected function setUp(): void
@@ -180,6 +181,23 @@ class ChannelsPageTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame('connected', $account->fresh()->status);
+    }
+
+    public function test_update_saves_the_business_account_id(): void
+    {
+        $account = $this->connect();
+
+        $this->actingAs($this->owner)
+            ->patch("/w/acme/channels/{$account->id}", ['business_account_id' => " WABA123 \n"])
+            ->assertRedirect();
+
+        $this->assertSame('WABA123', $account->fresh()->business_account_id);
+
+        $this->actingAs($this->owner)
+            ->patch("/w/acme/channels/{$account->id}", ['business_account_id' => ''])
+            ->assertRedirect();
+
+        $this->assertNull($account->fresh()->business_account_id);
     }
 
     public function test_a_member_cannot_touch_another_workspaces_account(): void
