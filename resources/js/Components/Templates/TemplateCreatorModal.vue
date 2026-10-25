@@ -49,7 +49,8 @@
                                 <label class="text-xs font-semibold text-slate-700">Body *</label>
                                 <button type="button" class="text-[11px] font-semibold text-brand-700" @click="addVar">+ Add variable</button>
                             </div>
-                            <textarea v-model="body" rows="6" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Hi {{1}}, ..."></textarea>
+                            <textarea v-model="body" rows="6" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Hi {{1}}, enjoy {{2}} off."></textarea>
+                            <p class="mt-1 text-[11px] text-slate-400">Variables must be sequential starting at {{1}}.</p>
                         </div>
                         <div class="flex justify-end gap-2">
                             <button type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs" @click="close">Cancel</button>
