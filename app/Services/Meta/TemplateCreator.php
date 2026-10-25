@@ -77,20 +77,26 @@ class TemplateCreator
         
         // Normalize component examples to Meta's expected format
         foreach ($components as &$component) {
-            if (($component['type'] ?? '') === 'BODY' && isset($component['example']['body_text'])) {
+            $type = strtoupper($component['type'] ?? '');
+            if ($type === 'BODY' && isset($component['example']['body_text'])) {
                 $bodyText = $component['example']['body_text'];
-                // If it's not nested as array of arrays, wrap it
-                if (is_array($bodyText) && !empty($bodyText) && !is_array($bodyText[0])) {
-                    $component['example']['body_text'] = [$bodyText];
-                } elseif (is_array($bodyText) && empty($bodyText)) {
-                    unset($component['example']);
+                // Meta expects body_text as array of arrays: [["value1", "value2"]]
+                if (is_array($bodyText)) {
+                    if (empty($bodyText)) {
+                        unset($component['example']);
+                    } elseif (!empty($bodyText) && !is_array($bodyText[0])) {
+                        // Flat array of values - wrap it
+                        $component['example']['body_text'] = [$bodyText];
+                    }
+                    // If it's already array of arrays, keep as-is
                 }
-            }
-            if (($component['type'] ?? '') === 'HEADER' && isset($component['example']['header_text'])) {
+            } elseif ($type === 'HEADER' && isset($component['example']['header_text'])) {
                 $headerText = $component['example']['header_text'];
-                if (is_array($headerText) && !empty($headerText) && !is_array($headerText[0])) {
-                    // header_text should be array of strings for single example set
-                    // Meta expects header_text as array of strings
+                if (is_array($headerText) && !empty($headerText) && isset($headerText[0]) && !is_array($headerText[0])) {
+                    // For header text with single example, keep as array of strings
+                } elseif (is_array($headerText) && !empty($headerText) && isset($headerText[0]) && is_array($headerText[0])) {
+                    // Flatten if nested
+                    $component['example']['header_text'] = $headerText[0];
                 }
             }
         }
