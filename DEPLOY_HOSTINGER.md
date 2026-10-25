@@ -446,3 +446,10 @@ cloudflared tunnel --url http://localhost:8000
 ```
 Use the generated `https://<random>.trycloudflare.com/webhooks/meta` as the callback URL.
 This is temporary; the Hostinger deploy above is the durable setup.
+
+
+## 15. Post-Deployment Verification (Mandatory Agent Step)
+Every time you finish running the deployment scripts on the Hostinger server, you MUST execute these verification steps before marking the task as complete:
+1. Run `php artisan config:cache` and `php artisan route:cache` on the live server.
+2. Use your local curl/HTTP tool to ping the live homepage URL to ensure it returns a `200 OK` status code (not a 500 error).
+3. Run `tail -n 20 storage/logs/laravel.log` on the live server to verify that no new critical exceptions or connection errors occurred during the code update.

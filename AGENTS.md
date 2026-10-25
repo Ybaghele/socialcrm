@@ -95,8 +95,11 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 # Deployment
 
-- Laravel can be deployed using [Laravel Cloud](https://cloud.laravel.com/), which is the fastest way to deploy and scale production Laravel applications.
-- Activate the `deploying-to-cloud` skill whenever deploying to Laravel Cloud, configuring Cloud environments or resources, using the Cloud CLI, or troubleshooting Cloud deployments.
+- This application is deployed on a Hostinger production server using the custom guidelines specified in `DEPLOY_HOSTINGER.md`. Do not use Laravel Cloud configurations.
+- Every time you finish running the deployment scripts on the Hostinger server, you MUST execute these post-deployment verification checks before marking a task as complete:
+  1. Run `php artisan config:cache` and `php artisan route:cache` on the live server via SSH to clear out old configurations.
+  2. Use your local curl/HTTP tool to ping the live website homepage URL to ensure it returns a successful `200 OK` status code (not a 500 server error).
+  3. Run `tail -n 30 storage/logs/laravel.log` on the live Hostinger server to verify that no new critical exceptions, environment parameter drops, or Meta API connection errors occurred during the code switch.
 
 === tests rules ===
 
