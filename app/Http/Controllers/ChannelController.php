@@ -277,7 +277,9 @@ class ChannelController extends Controller
             'externalId' => $account->external_id,
             'businessAccountId' => $account->business_account_id,
             'status' => $account->status,
-            'hasToken' => filled($account->access_token),
+            // A hand-edited or truncated encrypted value must not take down the whole
+            // settings page; surface it as "no token" so the tenant can paste a new one.
+            'hasToken' => rescue(fn () => filled($account->access_token), false),
             'tokenExpiresAt' => $account->token_expires_at?->toIso8601String(),
             'tokenExpired' => $account->token_expires_at?->isPast() ?? false,
             'lastWebhookAt' => $account->last_webhook_at?->toIso8601String(),

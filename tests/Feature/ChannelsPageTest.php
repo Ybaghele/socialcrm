@@ -183,6 +183,21 @@ class ChannelsPageTest extends TestCase
         $this->assertSame('connected', $account->fresh()->status);
     }
 
+    public function test_a_corrupt_stored_token_does_not_break_the_channel_list(): void
+    {
+        $account = $this->connect();
+
+        // Simulates a row whose encrypted value was truncated or hand-edited in the DB.
+        DB::table('channel_accounts')->where('id', $account->id)->update(['access_token' => 'not-a-valid-payload']);
+
+        $this->actingAs($this->owner)
+            ->get('/w/acme/channels')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('accounts', 1)
+                ->where('accounts.0.hasToken', false));
+    }
+
     public function test_update_saves_the_business_account_id(): void
     {
         $account = $this->connect();
