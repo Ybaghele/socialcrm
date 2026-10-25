@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Enums\WorkspaceRole;
 use App\Models\CannedResponse;
-use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\PipelineStage;
@@ -212,8 +211,13 @@ class InboxController extends Controller
     {
         return $conversation->messages()
             ->with('author:id,name')
+            ->reorder()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->limit(200)
             ->get()
+            ->reverse()
+            ->values()
             ->map(fn (Message $message) => [
                 'id' => $message->id,
                 'direction' => $message->direction,

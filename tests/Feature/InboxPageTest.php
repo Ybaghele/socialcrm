@@ -25,7 +25,9 @@ class InboxPageTest extends TestCase
     use RefreshDatabase;
 
     private Workspace $workspace;
+
     private User $member;
+
     private Conversation $conversation;
 
     protected function setUp(): void
@@ -102,6 +104,32 @@ class InboxPageTest extends TestCase
                 ->has('pipelineStages')
                 ->has('cannedResponses')
                 ->has('channels', 1)
+            );
+    }
+
+    public function test_a_long_thread_returns_the_latest_two_hundred_messages(): void
+    {
+        Tenancy::run($this->workspace, function () {
+            for ($i = 0; $i < 205; $i++) {
+                Message::create([
+                    'conversation_id' => $this->conversation->id,
+                    'direction' => 'inbound',
+                    'sender_type' => 'contact',
+                    'type' => 'text',
+                    'body' => 'Message '.$i,
+                    'created_at' => now()->addSeconds($i),
+                    'updated_at' => now()->addSeconds($i),
+                ]);
+            }
+        });
+
+        $this->actingAs($this->member)
+            ->get('/w/acme/inbox?conversation='.$this->conversation->id)
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('messages', 200)
+                ->where('messages.0.body', 'Message 5')
+                ->where('messages.199.body', 'Message 204')
             );
     }
 

@@ -157,6 +157,7 @@ async function sendMessage() {
 
         replyText.value = '';
         showCannedMenu.value = false;
+        stickToBottom = true;
         router.reload({ preserveScroll: true, preserveState: true });
     } catch (error) {
         const message =
@@ -205,22 +206,72 @@ function simulateInbound() {
 }
 
 /* ------------------------------------------------------------------ *
- * Real-time: listen on the tenant's private Reverb channel.           *
- * The server broadcasts message.received / message.updated; we show a *
- * toast and refresh the page props (debounced so a burst of inbound   *
- * messages triggers a single reload).                                 *
+ * Live inbox                                                          *
+ *                                                                     *
+ * Reverb is optional (shared hosting has no websocket process), so    *
+ * the page also polls the props it renders every 15s while the tab is *
+ * visible. Echo, when available, still refreshes instantly.           *
  * ------------------------------------------------------------------ */
+const POLL_INTERVAL_MS = 15_000;
+const POLLED_PROPS = ['conversations', 'selectedId', 'thread', 'messages', 'navCounts'];
+
 let inboxChannel = null;
 let reloadTimer = null;
+let pollTimer = null;
+let pollInFlight = false;
+let visitInFlight = false;
+let stopVisitStart = null;
+let stopVisitFinish = null;
+let isUnmounted = false;
 
 function scheduleReload() {
     clearTimeout(reloadTimer);
     reloadTimer = setTimeout(() => router.reload({ preserveScroll: true, preserveState: true }), 400);
 }
 
+/**
+ * Refresh only the props the inbox renders. Shared props are skipped except
+ * the unread badge, keeping the 15s request cheap on shared hosting.
+ */
+function refreshInbox() {
+    if (isUnmounted || document.hidden || sending.value || pollInFlight || visitInFlight) {
+        return;
+    }
+
+    pollInFlight = true;
+
+    router.reload({
+        only: POLLED_PROPS,
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => {
+            pollInFlight = false;
+        },
+        onCancel: () => {
+            pollInFlight = false;
+        },
+    });
+}
+
+function handleVisibilityChange() {
+    if (!document.hidden) {
+        refreshInbox();
+    }
+}
+
 onMounted(() => {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    stopVisitStart = router.on('start', () => {
+        visitInFlight = true;
+    });
+    stopVisitFinish = router.on('finish', () => {
+        visitInFlight = false;
+    });
+
+    pollTimer = window.setInterval(refreshInbox, POLL_INTERVAL_MS);
+
     if (!window.Echo || !workspaceId.value) {
-        return; // Reverb not running / not subscribed — the page still works via reloads.
+        return; // Reverb not running / not subscribed — polling keeps the inbox fresh.
     }
 
     inboxChannel = window.Echo.private(`workspace.${workspaceId.value}.inbox`);
@@ -234,20 +285,59 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    isUnmounted = true;
     clearTimeout(reloadTimer);
+    clearInterval(pollTimer);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    stopVisitStart?.();
+    stopVisitFinish?.();
 
     if (inboxChannel && window.Echo) {
         window.Echo.leave(`workspace.${workspaceId.value}.inbox`);
     }
 });
 
-watch(
-    () => props.messages,
-    async () => {
-        await nextTick();
+/* Keep the reader's scroll position while they read history; only follow
+ * new messages when they are already at the bottom of the thread. */
+const threadRevision = computed(
+    () => `${props.thread?.id ?? 'none'}:${props.messages.length}:${props.messages.at(-1)?.id ?? 'none'}`,
+);
 
-        if (threadScroller.value) {
-            threadScroller.value.scrollTop = threadScroller.value.scrollHeight;
+let stickToBottom = true;
+let lastThreadId = null;
+let lastMessageCount = 0;
+
+function onThreadScroll() {
+    const scroller = threadScroller.value;
+
+    stickToBottom = !scroller || scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 96;
+}
+
+watch(
+    threadRevision,
+    async () => {
+        const threadId = props.thread?.id ?? null;
+        const count = props.messages.length;
+        const threadChanged = threadId !== lastThreadId;
+        const grew = count > lastMessageCount;
+
+        lastThreadId = threadId;
+        lastMessageCount = count;
+
+        if (!threadChanged && !grew) {
+            return;
+        }
+
+        if (threadChanged) {
+            stickToBottom = true;
+        }
+
+        if (threadChanged || stickToBottom) {
+            await nextTick();
+
+            if (threadScroller.value) {
+                threadScroller.value.scrollTop = threadScroller.value.scrollHeight;
+            }
         }
     },
     { immediate: true },
@@ -477,7 +567,11 @@ watch(
                 </div>
 
                 <!-- Messages -->
-                <div ref="threadScroller" class="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/60 px-4 py-5 sm:px-6">
+                <div
+                    ref="threadScroller"
+                    class="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/60 px-4 py-5 sm:px-6"
+                    @scroll.passive="onThreadScroll"
+                >
                     <div v-for="message in messages" :key="message.id">
                         <!-- Internal note -->
                         <div v-if="message.isInternal" class="mx-auto max-w-2xl">
