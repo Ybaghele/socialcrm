@@ -73,11 +73,34 @@ class TemplateCreator
         $version = trim((string) config('omniflow.meta.graph_version', config('omniflow.meta.graph_version', 'v22.0')), '/');
         $url = "{$base}/{$version}/{$account->business_account_id}/message_templates";
 
+        $components = $payload['components'] ?? [];
+        
+        // Normalize component examples to Meta's expected format
+        foreach ($components as &$component) {
+            if (($component['type'] ?? '') === 'BODY' && isset($component['example']['body_text'])) {
+                $bodyText = $component['example']['body_text'];
+                // If it's not nested as array of arrays, wrap it
+                if (is_array($bodyText) && !empty($bodyText) && !is_array($bodyText[0])) {
+                    $component['example']['body_text'] = [$bodyText];
+                } elseif (is_array($bodyText) && empty($bodyText)) {
+                    unset($component['example']);
+                }
+            }
+            if (($component['type'] ?? '') === 'HEADER' && isset($component['example']['header_text'])) {
+                $headerText = $component['example']['header_text'];
+                if (is_array($headerText) && !empty($headerText) && !is_array($headerText[0])) {
+                    // header_text should be array of strings for single example set
+                    // Meta expects header_text as array of strings
+                }
+            }
+        }
+        unset($component);
+        
         $body = [
             'name' => strtolower((string) ($payload['name'] ?? '')),
             'category' => strtoupper((string) ($payload['category'] ?? 'MARKETING')),
             'language' => (string) ($payload['language'] ?? 'en_US'),
-            'components' => $payload['components'] ?? [],
+            'components' => $components,
             'allow_category_change' => true,
         ];
 

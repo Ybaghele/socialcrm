@@ -117,7 +117,6 @@ class TemplateController extends Controller
             'language' => $validated['language'],
             'components' => $validated['components'],
         ];
-
         try {
             $meta = $creator->create($account, $payload);
             
