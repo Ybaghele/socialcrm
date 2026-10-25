@@ -121,7 +121,7 @@ class TemplateCreator
             $body['appsecret_proof'] = hash_hmac('sha256', $token, $appSecret);
         }
 
-        Log::info(json_encode($body));
+        Log::info('TEMPLATE_PAYLOAD: '.json_encode($body));
 
         // Log the exact JSON payload being transmitted to spot formatting bugs
         Log::info('Sending Request Payload to Meta API Gateway', [
