@@ -116,6 +116,8 @@ class TemplateCreator
             $body['appsecret_proof'] = hash_hmac('sha256', $token, $appSecret);
         }
 
+        Log::info(json_encode($body));
+
         // Log the exact JSON payload being transmitted to spot formatting bugs
         Log::info('Sending Request Payload to Meta API Gateway', [
             'target_url' => $url,
@@ -128,6 +130,10 @@ class TemplateCreator
             $response = Http::withToken($token)
                 ->timeout(30)
                 ->post($url, $body);
+
+            if (! $response->successful()) {
+                Log::error($response->body());
+            }
 
             // 2. Log the raw response parameters immediately
             Log::info('Meta API Response Received Status Code: ' . $response->status(), [
