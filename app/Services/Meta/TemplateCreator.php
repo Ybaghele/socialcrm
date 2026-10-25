@@ -112,7 +112,6 @@ class TemplateCreator
             'category' => strtoupper((string) ($payload['category'] ?? 'MARKETING')),
             'language' => (string) ($payload['language'] ?? 'en_US'),
             'components' => $components,
-            'allow_category_change' => true,
         ];
 
         $appSecret = config('services.meta.app_secret') ?? config('omniflow.meta.app_secret') ?? env('META_APP_SECRET');
