@@ -102,8 +102,13 @@ class TemplateCreator
         }
         unset($component);
         
+        $name = strtolower(str_replace(' ', '_', (string) ($payload['name'] ?? '')));
+        $name = preg_replace('/[^a-z0-9_]/', '', $name);
+        $name = preg_replace('/_{2,}/', '_', $name);
+        $name = trim($name, '_');
+        
         $body = [
-            'name' => strtolower((string) ($payload['name'] ?? '')),
+            'name' => $name,
             'category' => strtoupper((string) ($payload['category'] ?? 'MARKETING')),
             'language' => (string) ($payload['language'] ?? 'en_US'),
             'components' => $components,
