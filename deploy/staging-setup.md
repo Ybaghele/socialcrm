@@ -4,11 +4,18 @@ This sets up `https://staging.socialcrm.vrindaamrit.com` as an isolated copy of 
 that is safe to break: its own database, its own `APP_KEY`, its own Meta secrets, and
 outbound messaging hard-disabled.
 
-> **Status on this account (26 Oct 2026):** the subdomain already exists and resolves to
-> `145.79.28.83`. Its document root is
-> `/home/u116324493/domains/socialcrm.vrindaamrit.com/public_html/staging`
-> (currently just Hostinger's `default.php`, which returns 403). No staging database
-> exists yet.
+> **Status on this account (26 Oct 2026):** staging is installed and working at
+> **`https://socialcrm.vrindaamrit.com/staging/`** (the path URL, served by the
+> production vhost; note the distinct staging session cookie). The staging database
+> `u116324493_socialdesk_stg` exists and is seeded with the three plans.
+>
+> `staging.socialcrm.vrindaamrit.com` resolves to `145.79.28.83` and the folder
+> `/home/u116324493/domains/socialcrm.vrindaamrit.com/public_html/staging` exists, but the
+> hostname still serves Hostinger's default 403/404 instead of that folder: the subdomain
+> is **not attached to the folder** in hPanel. Fix it in hPanel (Subdomains → `staging` →
+> document root `domains/socialcrm.vrindaamrit.com/public_html/staging`), issue SSL, then
+> switch `APP_URL` back to the subdomain and re-run `config:cache`. Until then, use the
+> path URL.
 
 ---
 
@@ -337,6 +344,12 @@ wire by exporting `PUBLIC_DIR` in the hook:
 HOOK=~/staging/socialdesk/.git/hooks/post-receive
 grep -q '^export PUBLIC_DIR=' "$HOOK" || \
   sed -i '2i export PUBLIC_DIR=/home/u116324493/domains/socialcrm.vrindaamrit.com/public_html/staging' "$HOOK"
+
+# Pin the CLI to the documented PHP 8.3 build. The hook's PHP probe prefers
+# /opt/alt/php84 first, which would otherwise make staging deploys differ from
+# the version this runbook (and Composer 2.9.8) was set up with.
+grep -q '^export PHP_BIN=' "$HOOK" || \
+  sed -i '3i export PHP_BIN=/opt/alt/php83/usr/bin/php' "$HOOK"
 ```
 
 ### Every deploy
@@ -369,6 +382,10 @@ Run after setup and after every staging deploy:
 | 8 | `APP_ENV` in the UI/logs | `staging` |
 | 9 | Production homepage | still `200` (unchanged) |
 | 10 | Production `storage/logs/laravel.log` | no new errors |
+
+> Until the subdomain vhost is fixed (see the status note at the top), use
+> `https://socialcrm.vrindaamrit.com/staging` in place of
+> `https://staging.socialcrm.vrindaamrit.com` for checks 1–4 and the smoke test below.
 
 Quick smoke test for #3/#4:
 
@@ -404,6 +421,8 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
 | Symptom | Cause / fix |
 |---|---|
 | 403 on every staging page | hPanel password protection is working — add credentials. Otherwise check the docroot in hPanel. |
+| Subdomain says 403/404 but `/staging/` on the main domain works | The subdomain vhost is not attached to `public_html/staging` (DNS can exist without a vhost). Recreate/fix the subdomain in hPanel with that exact document root, issue SSL, then set `APP_URL` to the subdomain and re-run `config:cache`. |
+| `Identifier name ... is too long` during migrate | A composite index name exceeds MySQL/MariaDB's 64-char limit. Give `$table->unique([...])` an explicit short name (see `2026_10_01_000005_create_contacts_tables.php`). SQLite tests do not catch this. |
 | 500 after setup | `APP_PUBLIC_PATH` wrong, or `.env` missing `APP_KEY`. Check `~/staging/socialdesk/storage/logs/laravel.log`. |
 | CSS/JS 404 | `public_html/staging/build` symlink missing — re-run §6c. |
 | "Vite manifest not found" | `APP_PUBLIC_PATH` doesn't point at the staging docroot; re-run `config:cache`. |
