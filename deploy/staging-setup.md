@@ -4,23 +4,16 @@ This sets up `https://staging.socialcrm.vrindaamrit.com` as an isolated copy of 
 that is safe to break: its own database, its own `APP_KEY`, its own Meta secrets, and
 outbound messaging hard-disabled.
 
-> **Status on this account (26 Oct 2026):** staging is installed and working at
-> **`https://socialcrm.vrindaamrit.com/staging/`** (the path URL, served by the
-> production vhost; note the distinct staging session cookie). The staging database
-> `u116324493_socialdesk_stg` exists and is seeded with the three plans.
+> **Status on this account (26 Oct 2026):** staging is live at
+> **`https://staging.socialcrm.vrindaamrit.com`** with its own database
+> (`u116324493_socialdesk_stg`), the three plans, and a first user/workspace on a Growth
+> trial. The subdomain vhost and SSL are configured, and `X-Robots-Tag: noindex` is set.
+> A simulated WhatsApp inbound has been processed end to end, and the deploy hook works
+> (`git push staging`). Production remains on `161ff68`.
 >
-> `staging.socialcrm.vrindaamrit.com` resolves to `145.79.28.83` and the folder
-> `/home/u116324493/domains/socialcrm.vrindaamrit.com/public_html/staging` exists, but the
-> hostname still serves Hostinger's default 403/404 instead of that folder: the subdomain
-> is **not attached to the folder** in hPanel. Fix it in hPanel (Subdomains → `staging` →
-> document root `domains/socialcrm.vrindaamrit.com/public_html/staging`), issue SSL, then
-> switch `APP_URL` back to the subdomain and re-run `config:cache`. Until then, use the
-> path URL.
->
-> While the path URL is in use, browse staging in a **separate browser profile or
-> incognito**. It shares the `socialcrm.vrindaamrit.com` host with production, so the
-> `XSRF-TOKEN` cookie can overwrite production's and cause 419s in a browser that uses
-> both. The subdomain gives staging its own cookie host and removes this hazard.
+> The app also answers at `https://socialcrm.vrindaamrit.com/staging/`, but use the
+> subdomain: the path URL shares the production host and can collide on the
+> `XSRF-TOKEN` cookie (419s) in a browser that also uses production.
 
 ---
 
@@ -162,9 +155,8 @@ php artisan view:cache
 > aborts. Production's `post-receive.sh` deliberately never runs it either.
 
 Then create your staging login at `https://staging.socialcrm.vrindaamrit.com/register`
-(or `https://socialcrm.vrindaamrit.com/staging/register` until the subdomain vhost is
-fixed; the first registration creates a workspace + trial subscription). To reach the
-platform console, promote that user:
+(the first registration creates a workspace + trial subscription). To reach the platform
+console, promote that user:
 
 ```bash
 php artisan tinker --execute 'App\Models\User::where("email", "you@example.com")->update(["is_super_admin" => true]);'
@@ -390,9 +382,9 @@ Run after setup and after every staging deploy:
 | 9 | Production homepage | still `200` (unchanged) |
 | 10 | Production `storage/logs/laravel.log` | no new errors |
 
-> Until the subdomain vhost is fixed (see the status note at the top), use
-> `https://socialcrm.vrindaamrit.com/staging` in place of
-> `https://staging.socialcrm.vrindaamrit.com` for checks 1–4 and the smoke test below.
+> Use `https://staging.socialcrm.vrindaamrit.com` for checks 1–4 and the smoke test below.
+> The path URL (`https://socialcrm.vrindaamrit.com/staging`) also works, but it shares
+> production's host and cookie jar; don't alternate between the two in the same browser.
 
 Quick smoke test for #3/#4:
 
