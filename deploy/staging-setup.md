@@ -146,7 +146,8 @@ composer install --no-dev --optimize-autoloader --no-interaction --no-progress
 php artisan migrate --force
 php artisan db:seed --class=PlanSeeder --force
 
-php artisan storage:link
+# No `storage:link` here: it shells out to exec(), which Hostinger disables.
+# The wire step below creates the served storage symlink instead.
 php artisan optimize:clear
 php artisan config:cache
 php artisan view:cache

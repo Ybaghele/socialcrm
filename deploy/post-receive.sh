@@ -113,7 +113,10 @@ fi
 # ---------------------------------------------------------------------------
 bash "$APP_DIR/deploy/wire-public-html.sh" || true
 
-"$PHP" artisan storage:link >/dev/null 2>&1 || true
+# storage:link shells out to exec(), which Hostinger disables, so it would log an
+# error on every deploy. Create the same symlink directly instead. The served
+# storage link is already wired by wire-public-html.sh above.
+ln -sfn "$APP_DIR/storage/app/public" "$APP_DIR/public/storage" 2>/dev/null || true
 # Capital X adds the execute bit to directories only. A plain `chmod -R 775`
 # would also mark files (including storage/*/.gitignore) executable, which makes
 # git report the whole tree as modified after every deploy.
