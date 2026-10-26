@@ -22,6 +22,11 @@ return [
         'app_secret' => env('META_APP_SECRET'),
         'verify_token' => env('META_WEBHOOK_VERIFY_TOKEN'),
 
+        // Master switch for outbound Graph API calls. Production leaves this on;
+        // staging sets META_OUTBOUND_ENABLED=false so a test click can never send
+        // a real WhatsApp/Instagram/Messenger message or charge a wallet.
+        'outbound_enabled' => (bool) env('META_OUTBOUND_ENABLED', true),
+
         // Check Meta's current Graph API version and set META_GRAPH_VERSION; old versions get retired.
         'graph_version' => env('META_GRAPH_VERSION', 'v22.0'),
 

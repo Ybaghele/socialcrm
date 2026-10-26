@@ -39,6 +39,10 @@ class SendOutboundMessage
      */
     public function handle(Conversation $conversation, ?User $author, ?string $text = null, ?MessageTemplate $template = null, array $variables = [], ?string $headerImageUrl = null): Message
     {
+        if (! config('omniflow.meta.outbound_enabled', true)) {
+            throw new OutboundNotAllowed('outbound_disabled', 'Outbound messaging is disabled on this environment.');
+        }
+
         $channel = ChannelType::from($conversation->channel);
         $account = $conversation->channelAccount;
         $contact = $conversation->contact;

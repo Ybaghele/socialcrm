@@ -133,6 +133,22 @@ class OutboundSendingTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_outbound_messaging_is_blocked_when_disabled_for_staging(): void
+    {
+        config(['omniflow.meta.outbound_enabled' => false]);
+
+        try {
+            $this->send('Hello from staging');
+            $this->fail('Expected OutboundNotAllowed');
+        } catch (OutboundNotAllowed $e) {
+            $this->assertSame('outbound_disabled', $e->reason);
+        }
+
+        Tenancy::run($this->ws, fn () => $this->assertSame(0, Message::count()));
+        $this->assertSame(10000, $this->balance());
+        Http::assertNothingSent();
+    }
+
     public function test_template_outside_the_window_is_sent_and_charged_with_a_ledger_line(): void
     {
         $this->fakeWhatsAppSuccess();
