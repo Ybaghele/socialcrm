@@ -46,7 +46,9 @@ return new class extends Migration
             $table->timestamp('last_inbound_at')->nullable(); // 24-hour messaging window
             $table->timestamps();
 
-            $table->unique(['channel_account_id', 'external_user_id']);
+            // Explicit name: the generated default is 69 chars and MySQL/MariaDB
+            // reject identifiers over 64. Matches the name already in production.
+            $table->unique(['channel_account_id', 'external_user_id'], 'cc_identities_ch_ext_uid_unique');
             $table->index('contact_id');
         });
 
