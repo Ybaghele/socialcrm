@@ -16,6 +16,11 @@ outbound messaging hard-disabled.
 > document root `domains/socialcrm.vrindaamrit.com/public_html/staging`), issue SSL, then
 > switch `APP_URL` back to the subdomain and re-run `config:cache`. Until then, use the
 > path URL.
+>
+> While the path URL is in use, browse staging in a **separate browser profile or
+> incognito**. It shares the `socialcrm.vrindaamrit.com` host with production, so the
+> `XSRF-TOKEN` cookie can overwrite production's and cause 419s in a browser that uses
+> both. The subdomain gives staging its own cookie host and removes this hazard.
 
 ---
 
@@ -157,7 +162,8 @@ php artisan view:cache
 > aborts. Production's `post-receive.sh` deliberately never runs it either.
 
 Then create your staging login at `https://staging.socialcrm.vrindaamrit.com/register`
-(the first registration creates a workspace + trial subscription). To reach the
+(or `https://socialcrm.vrindaamrit.com/staging/register` until the subdomain vhost is
+fixed; the first registration creates a workspace + trial subscription). To reach the
 platform console, promote that user:
 
 ```bash
