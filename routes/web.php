@@ -101,6 +101,9 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         Route::post('/campaigns', [CampaignController::class, 'store'])->name('campaigns.store');
         Route::patch('/campaigns/{campaign}', [CampaignController::class, 'update'])->name('campaigns.update');
 
+        // Meta Ads Campaign Manager (Phase 1)
+        Route::resource('ads/campaigns', \App\Http\Controllers\AdCampaignController::class)->names('ads.campaigns');
+
         // Approved WhatsApp templates (mirrored from Meta) that broadcasts can use.
         Route::get('/templates', [TemplateController::class, 'index'])->name('templates.index');
         Route::post('/templates', [TemplateController::class, 'store'])->name('templates.store');
