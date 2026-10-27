@@ -43,6 +43,34 @@ const form = useForm({
     status: 'draft',
 });
 
+const billingWarning = ref(null);
+const billingChecking = ref(false);
+
+const checkBilling = async () => {
+    if (!form.ad_account_id) return;
+    billingChecking.value = true;
+    try {
+        const res = await axios.post(route('ads.billing.check', { workspace: workspaceSlug.value }), {
+            ad_account_id: form.ad_account_id.replace(/^act_/, ''),
+        });
+        if (res.data && res.data.billing_ready === false) {
+            billingWarning.value = {
+                warning: res.data.warning || "Payment method is missing. Please add your client’s card",
+                cta: res.data.cta || 'https://www.facebook.com/ads/manager/account_settings/account_billing/',
+            };
+        } else {
+            billingWarning.value = null;
+        }
+    } catch (e) {
+        billingWarning.value = {
+            warning: "Payment method is missing. Please add your client’s card",
+            cta: 'https://www.facebook.com/ads/manager/account_settings/account_billing/',
+        };
+    } finally {
+        billingChecking.value = false;
+    }
+};
+
 const objectives = [
     'OUTCOME_AWARENESS',
     'OUTCOME_TRAFFIC',
@@ -141,7 +169,21 @@ const publish = () => {
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-semibold text-slate-700">Ad Account ID (Meta)</label>
-                                <input v-model="form.ad_account_id" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" placeholder="act_1234567890" />
+                                <div class="flex gap-2">
+                                    <input v-model="form.ad_account_id" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" placeholder="act_1234567890" @blur="checkBilling" />
+                                    <button type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50" :disabled="billingChecking" @click="checkBilling">
+                                        {{ billingChecking ? 'Checking...' : 'Check Billing' }}
+                                    </button>
+                                </div>
+                            </div>
+                            <div v-if="billingWarning" class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                                <div class="flex items-start gap-2">
+                                    <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                                    <div class="flex-1">
+                                        <p class="font-semibold">{{ billingWarning.warning }}</p>
+                                        <a :href="billingWarning.cta" target="_blank" rel="noopener" class="mt-1 inline-block text-xs font-semibold text-amber-900 underline">Go to Meta Billing Settings</a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
