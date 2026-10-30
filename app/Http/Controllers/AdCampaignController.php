@@ -56,16 +56,17 @@ class AdCampaignController extends Controller
         $campaign = AdCampaign::create($validated);
 
         $workspace = $request->attributes->get('workspace');
-        $slug = $workspace?->slug ?? $request->route('workspace');
+        $slug = $workspace?->slug ?? $request->route('workspace') ?? $request->route('slug');
 
-        if (! $slug && $workspace) {
-            $slug = $workspace->slug;
+        if ($slug) {
+            return redirect()->route('ads.campaigns.edit', [
+                'workspace' => $slug,
+                'ad_campaign' => $campaign->id,
+            ])->with('success', 'Ad campaign draft saved.');
         }
 
-        return redirect()->route('ads.campaigns.edit', [
-            'workspace' => $slug,
-            'ad_campaign' => $campaign->id,
-        ])->with('success', 'Ad campaign draft saved.');
+        return redirect()->route('ads.campaigns.index')->with('success', 'Ad campaign draft saved.');
+    }
     }
 
     /**
