@@ -121,10 +121,10 @@ const platformIcon = (p) => {
                                     <td class="px-4 py-3 text-slate-600">{{ campaign.ad_sets_count }}</td>
                                     <td class="px-4 py-3 text-right">
                                         <div class="flex items-center justify-end gap-2">
-                                            <Link :href="route('ads.campaigns.show', { workspace: workspaceSlug, ad_campaign: campaign.id })" class="text-slate-500 hover:text-slate-700">
+                                            <Link :href="route('ads.campaigns.show', { workspace: workspaceSlug, campaign: campaign.id })" class="text-slate-500 hover:text-slate-700">
                                                 <i class="fa-solid fa-eye"></i>
                                             </Link>
-                                            <Link :href="route('ads.campaigns.edit', { workspace: workspaceSlug, ad_campaign: campaign.id })" class="text-slate-500 hover:text-slate-700">
+                                            <Link :href="route('ads.campaigns.edit', { workspace: workspaceSlug, campaign: campaign.id })" class="text-slate-500 hover:text-slate-700">
                                                 <i class="fa-solid fa-pen"></i>
                                             </Link>
                                         </div>

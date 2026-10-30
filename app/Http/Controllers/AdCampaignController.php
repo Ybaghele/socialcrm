@@ -61,7 +61,7 @@ class AdCampaignController extends Controller
         if ($slug) {
             return redirect()->route('ads.campaigns.edit', [
                 'workspace' => $slug,
-                'ad_campaign' => $campaign->id,
+                'campaign' => $campaign->id,
             ])->with('success', 'Ad campaign draft saved.');
         }
 
