@@ -32,6 +32,18 @@ class UpdateAdCampaignRequest extends FormRequest
             'budget_type' => ['nullable', Rule::in(['daily', 'lifetime'])],
             'budget_amount' => ['nullable', 'numeric', 'min:0'],
             'status' => ['nullable', Rule::in(['draft', 'processing', 'active', 'paused', 'archived', 'failed'])],
+            'audience_json' => ['nullable', 'array'],
+            'placements_json' => ['nullable', 'array'],
+            'optimization_goal' => ['nullable', 'string', 'max:255'],
+            'start_at' => ['nullable', 'date'],
+            'end_at' => ['nullable', 'date'],
+            'format' => ['nullable', 'string', 'max:255'],
+            'media_url' => ['nullable', 'string', 'max:2048'],
+            'primary_text' => ['nullable', 'string'],
+            'headline' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'cta' => ['nullable', 'string', 'max:255'],
+            'destination_url' => ['nullable', 'string', 'max:2048'],
         ];
     }
 }

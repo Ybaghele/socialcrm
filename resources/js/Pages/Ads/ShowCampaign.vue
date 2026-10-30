@@ -22,7 +22,7 @@ const workspaceSlug = computed(() => page.props.workspace?.slug);
                         <p class="mt-1 text-xs text-slate-500">Campaign details</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <Link :href="route('ads.campaigns.edit', { workspace: workspaceSlug, ad_campaign: campaign.id })" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100">Edit</Link>
+                        <Link :href="route('ads.campaigns.edit', { workspace: workspaceSlug, campaign: campaign.id })" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100">Edit</Link>
                         <Link :href="route('ads.campaigns.index', { workspace: workspaceSlug })" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100">Back</Link>
                     </div>
                 </div>

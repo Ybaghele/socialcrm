@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateAdCampaignRequest;
 use App\Models\AdCampaign;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -53,7 +54,8 @@ class AdCampaignController extends Controller
         $validated = $request->validated();
         $validated['status'] = $validated['status'] ?? 'draft';
 
-        $campaign = AdCampaign::create($validated);
+        $campaign = AdCampaign::create($this->campaignAttributes($validated));
+        $this->syncAdSetAndCreative($campaign, $validated);
 
         $workspace = $request->attributes->get('workspace');
         $slug = $workspace?->slug ?? $request->route('workspace') ?? $request->route('slug');
@@ -71,34 +73,36 @@ class AdCampaignController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(AdCampaign $adCampaign): Response
+    public function show(string $workspace, AdCampaign $campaign): Response
     {
-        $adCampaign->load(['adSets.creatives']);
+        $campaign->load(['adSets.creatives']);
 
         return Inertia::render('Ads/ShowCampaign', [
-            'campaign' => $adCampaign,
+            'campaign' => $campaign,
         ]);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(AdCampaign $adCampaign): Response
+    public function edit(string $workspace, AdCampaign $campaign): Response
     {
-        $adCampaign->load(['adSets.creatives']);
+        $campaign->load(['adSets.creatives']);
 
         return Inertia::render('Ads/CreateCampaignWizard', [
-            'campaign' => $adCampaign,
+            'campaign' => $campaign,
         ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateAdCampaignRequest $request, AdCampaign $adCampaign): RedirectResponse
+    public function update(UpdateAdCampaignRequest $request, string $workspace, AdCampaign $campaign): RedirectResponse
     {
         $validated = $request->validated();
-        $adCampaign->update($validated);
+
+        $campaign->update($this->campaignAttributes($validated));
+        $this->syncAdSetAndCreative($campaign, $validated);
 
         return back()->with('success', 'Ad campaign draft updated.');
     }
@@ -106,10 +110,99 @@ class AdCampaignController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(AdCampaign $adCampaign): RedirectResponse
+    public function destroy(string $workspace, AdCampaign $campaign): RedirectResponse
     {
-        $adCampaign->delete();
+        $campaign->delete();
 
         return redirect()->route('ads.campaigns.index')->with('success', 'Ad campaign archived.');
+    }
+
+    /**
+     * Campaign-level columns captured by the wizard.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function campaignAttributes(array $validated): array
+    {
+        return Arr::only($validated, [
+            'platform',
+            'ad_account_id',
+            'name',
+            'objective',
+            'special_category',
+            'budget_type',
+            'budget_amount',
+            'status',
+        ]);
+    }
+
+    /**
+     * Persist the single ad set and creative the wizard collects, so drafts
+     * round-trip back into the edit form instead of being silently dropped.
+     *
+     * @param  array<string, mixed>  $validated
+     */
+    private function syncAdSetAndCreative(AdCampaign $campaign, array $validated): void
+    {
+        $adSetAttributes = Arr::only($validated, [
+            'audience_json',
+            'placements_json',
+            'optimization_goal',
+            'start_at',
+            'end_at',
+        ]);
+
+        $adSet = $campaign->adSets()->orderBy('id')->first();
+
+        if ($adSet === null) {
+            $adSet = $campaign->adSets()->create([
+                'name' => $campaign->name,
+                'status' => 'draft',
+                ...$adSetAttributes,
+            ]);
+        } elseif ($adSetAttributes !== []) {
+            $adSet->update($adSetAttributes);
+        }
+
+        $creativeAttributes = Arr::only($validated, [
+            'format',
+            'media_url',
+            'primary_text',
+            'headline',
+            'description',
+            'cta',
+            'destination_url',
+        ]);
+
+        $creative = $adSet->creatives()->orderBy('id')->first();
+
+        if ($creative === null) {
+            if ($this->hasCreativeContent($creativeAttributes)) {
+                $adSet->creatives()->create([
+                    'name' => $campaign->name,
+                    'status' => 'draft',
+                    ...$creativeAttributes,
+                ]);
+            }
+
+            return;
+        }
+
+        $creative->update($creativeAttributes);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function hasCreativeContent(array $attributes): bool
+    {
+        foreach (['media_url', 'primary_text', 'headline', 'description', 'destination_url'] as $key) {
+            if (filled($attributes[$key] ?? null)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

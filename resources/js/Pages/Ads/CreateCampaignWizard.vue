@@ -22,6 +22,21 @@ const steps = [
 
 const campaignData = computed(() => props.campaign || page.props.campaign || null);
 
+/**
+ * Format an ISO timestamp for an <input type="datetime-local">.
+ */
+const toDateTimeLocal = (value) => {
+    if (!value) return '';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return '';
+
+    const pad = (part) => String(part).padStart(2, '0');
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 const form = useForm({
     platform: campaignData.value?.platform || 'meta',
     ad_account_id: campaignData.value?.ad_account_id || '',
@@ -33,8 +48,8 @@ const form = useForm({
     audience_json: campaignData.value?.ad_sets?.[0]?.audience_json || { age_min: 18, age_max: 65, genders: [0], locations: [] },
     placements_json: campaignData.value?.ad_sets?.[0]?.placements_json || { facebook: true, instagram: true, messenger: false, audience_network: false },
     optimization_goal: campaignData.value?.ad_sets?.[0]?.optimization_goal || 'conversions',
-    start_at: campaignData.value?.ad_sets?.[0]?.start_at || '',
-    end_at: campaignData.value?.ad_sets?.[0]?.end_at || '',
+    start_at: toDateTimeLocal(campaignData.value?.ad_sets?.[0]?.start_at),
+    end_at: toDateTimeLocal(campaignData.value?.ad_sets?.[0]?.end_at),
     format: campaignData.value?.ad_sets?.[0]?.creatives?.[0]?.format || 'image',
     media_url: campaignData.value?.ad_sets?.[0]?.creatives?.[0]?.media_url || '',
     primary_text: campaignData.value?.ad_sets?.[0]?.creatives?.[0]?.primary_text || '',
@@ -93,6 +108,17 @@ const canProceed = computed(() => {
     if (step.value === 4) return form.primary_text && form.destination_url && form.media_url;
     return true;
 });
+
+const updateAudienceJson = (value) => {
+    try {
+        const parsed = JSON.parse(value);
+        if (parsed !== null && typeof parsed === 'object') {
+            form.audience_json = parsed;
+        }
+    } catch {
+        // Ignore incomplete JSON while the user is still typing.
+    }
+};
 
 const saveDraft = () => {
     if (campaignData.value?.id) {
@@ -228,7 +254,7 @@ const publish = () => {
                         <div v-if="step === 3" class="space-y-4">
                             <div class="rounded-lg border border-slate-200 p-3">
                                 <p class="mb-2 text-xs font-semibold text-slate-700">Audience (JSON builder)</p>
-                                <textarea v-model="form.audience_json" rows="4" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-mono" @input="form.audience_json = JSON.parse($event.target.value)" :value="JSON.stringify(form.audience_json, null, 2)"></textarea>
+                                <textarea :value="JSON.stringify(form.audience_json, null, 2)" rows="4" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-mono" @input="updateAudienceJson($event.target.value)"></textarea>
                             </div>
                             <div class="rounded-lg border border-slate-200 p-3">
                                 <p class="mb-2 text-xs font-semibold text-slate-700">Placements</p>
