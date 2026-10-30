@@ -67,7 +67,6 @@ class AdCampaignController extends Controller
 
         return redirect()->route('ads.campaigns.index')->with('success', 'Ad campaign draft saved.');
     }
-    }
 
     /**
      * Display the specified resource.
