@@ -20,27 +20,29 @@ const steps = [
     { id: 5, name: 'Review & Publish' },
 ];
 
+const campaignData = computed(() => props.campaign || page.props.campaign || null);
+
 const form = useForm({
-    platform: props.campaign?.platform || 'meta',
-    ad_account_id: props.campaign?.ad_account_id || '',
-    name: props.campaign?.name || '',
-    objective: props.campaign?.objective || '',
-    special_category: props.campaign?.special_category || '',
-    budget_type: props.campaign?.budget_type || 'daily',
-    budget_amount: props.campaign?.budget_amount || '',
-    audience_json: props.campaign?.ad_sets?.[0]?.audience_json || { age_min: 18, age_max: 65, genders: [0], locations: [] },
-    placements_json: props.campaign?.ad_sets?.[0]?.placements_json || { facebook: true, instagram: true, messenger: false, audience_network: false },
-    optimization_goal: props.campaign?.ad_sets?.[0]?.optimization_goal || 'conversions',
-    start_at: props.campaign?.ad_sets?.[0]?.start_at || '',
-    end_at: props.campaign?.ad_sets?.[0]?.end_at || '',
-    format: props.campaign?.ad_sets?.[0]?.creatives?.[0]?.format || 'image',
-    media_url: props.campaign?.ad_sets?.[0]?.creatives?.[0]?.media_url || '',
-    primary_text: props.campaign?.ad_sets?.[0]?.creatives?.[0]?.primary_text || '',
-    headline: props.campaign?.ad_sets?.[0]?.creatives?.[0]?.headline || '',
-    description: props.campaign?.ad_sets?.[0]?.creatives?.[0]?.description || '',
-    cta: props.campaign?.ad_sets?.[0]?.creatives?.[0]?.cta || 'LEARN_MORE',
-    destination_url: props.campaign?.ad_sets?.[0]?.creatives?.[0]?.destination_url || '',
-    status: 'draft',
+    platform: campaignData.value?.platform || 'meta',
+    ad_account_id: campaignData.value?.ad_account_id || '',
+    name: campaignData.value?.name || '',
+    objective: campaignData.value?.objective || '',
+    special_category: campaignData.value?.special_category || '',
+    budget_type: campaignData.value?.budget_type || 'daily',
+    budget_amount: campaignData.value?.budget_amount || '',
+    audience_json: campaignData.value?.ad_sets?.[0]?.audience_json || { age_min: 18, age_max: 65, genders: [0], locations: [] },
+    placements_json: campaignData.value?.ad_sets?.[0]?.placements_json || { facebook: true, instagram: true, messenger: false, audience_network: false },
+    optimization_goal: campaignData.value?.ad_sets?.[0]?.optimization_goal || 'conversions',
+    start_at: campaignData.value?.ad_sets?.[0]?.start_at || '',
+    end_at: campaignData.value?.ad_sets?.[0]?.end_at || '',
+    format: campaignData.value?.ad_sets?.[0]?.creatives?.[0]?.format || 'image',
+    media_url: campaignData.value?.ad_sets?.[0]?.creatives?.[0]?.media_url || '',
+    primary_text: campaignData.value?.ad_sets?.[0]?.creatives?.[0]?.primary_text || '',
+    headline: campaignData.value?.ad_sets?.[0]?.creatives?.[0]?.headline || '',
+    description: campaignData.value?.ad_sets?.[0]?.creatives?.[0]?.description || '',
+    cta: campaignData.value?.ad_sets?.[0]?.creatives?.[0]?.cta || 'LEARN_MORE',
+    destination_url: campaignData.value?.ad_sets?.[0]?.creatives?.[0]?.destination_url || '',
+    status: campaignData.value?.status || 'draft',
 });
 
 const billingWarning = ref(null);
@@ -93,8 +95,8 @@ const canProceed = computed(() => {
 });
 
 const saveDraft = () => {
-    if (props.campaign?.id) {
-        form.patch(route('ads.campaigns.update', { workspace: workspaceSlug.value, campaign: props.campaign.id }), {
+    if (campaignData.value?.id) {
+        form.patch(route('ads.campaigns.update', { workspace: workspaceSlug.value, campaign: campaignData.value.id }), {
             preserveScroll: true,
         });
     } else {
@@ -114,8 +116,8 @@ const prevStep = () => {
 
 const publish = () => {
     form.status = 'processing';
-    if (props.campaign?.id) {
-        form.patch(route('ads.campaigns.update', { workspace: workspaceSlug.value, campaign: props.campaign.id }), {
+    if (campaignData.value?.id) {
+        form.patch(route('ads.campaigns.update', { workspace: workspaceSlug.value, campaign: campaignData.value.id }), {
             preserveScroll: true,
             onSuccess: () => router.visit(route('ads.campaigns.index', { workspace: workspaceSlug.value })),
         });
