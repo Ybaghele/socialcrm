@@ -94,7 +94,7 @@ const canProceed = computed(() => {
 
 const saveDraft = () => {
     if (props.campaign?.id) {
-        form.patch(route('ads.campaigns.update', { workspace: workspaceSlug.value, ad_campaign: props.campaign.id }), {
+        form.patch(route('ads.campaigns.update', { workspace: workspaceSlug.value, campaign: props.campaign.id }), {
             preserveScroll: true,
         });
     } else {
@@ -115,7 +115,7 @@ const prevStep = () => {
 const publish = () => {
     form.status = 'processing';
     if (props.campaign?.id) {
-        form.patch(route('ads.campaigns.update', { workspace: workspaceSlug.value, ad_campaign: props.campaign.id }), {
+        form.patch(route('ads.campaigns.update', { workspace: workspaceSlug.value, campaign: props.campaign.id }), {
             preserveScroll: true,
             onSuccess: () => router.visit(route('ads.campaigns.index', { workspace: workspaceSlug.value })),
         });
