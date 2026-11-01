@@ -57,7 +57,7 @@ const navItems = computed(() => {
         { label: 'Analytics', icon: 'fa-solid fa-chart-line', href: route('analytics.index', { workspace: slug }), component: 'Analytics', badge: null, badgeClass: '' },
         { label: 'Lead CRM', icon: 'fa-solid fa-address-book', href: route('contacts.index', { workspace: slug }), component: 'Contacts', badge: navCounts.value.contacts || null, badgeClass: 'bg-slate-100 text-slate-500' },
         { label: 'Campaigns', icon: 'fa-solid fa-bullhorn', href: route('campaigns.index', { workspace: slug }), component: 'Campaigns', badge: navCounts.value.activeCampaigns ? `${navCounts.value.activeCampaigns} live` : null, badgeClass: 'bg-emerald-100 text-emerald-700' },
-        { label: 'Ad Manager', icon: 'fa-solid fa-bullseye', href: route('ads.campaigns.index', { workspace: slug }), component: 'Ads/CampaignDashboard', badge: null, badgeClass: '' },
+        { label: 'Ad Manager', icon: 'fa-solid fa-bullseye', href: route('ads.campaigns.index', { workspace: slug }), component: ['Ads/CampaignDashboard', 'Ads/CampaignAnalytics', 'Ads/ShowCampaign', 'Ads/CreateCampaignWizard'], badge: null, badgeClass: '' },
         { label: 'Templates', icon: 'fa-solid fa-file-lines', href: route('templates.index', { workspace: slug }), component: 'Templates', badge: null, badgeClass: '' },
         { label: 'Audiences', icon: 'fa-solid fa-filter', href: route('segments.index', { workspace: slug }), component: 'Segments', badge: null, badgeClass: '' },
         { label: 'Automations', icon: 'fa-solid fa-bolt', href: route('automations.index', { workspace: slug }), component: 'Automations', badge: null, badgeClass: '' },
@@ -69,7 +69,8 @@ const navItems = computed(() => {
     ];
 });
 
-const isActive = (component) => page.component === component;
+const isActive = (component) =>
+    Array.isArray(component) ? component.includes(page.component) : page.component === component;
 
 // Notification levels → icon + colour for the bell dropdown and the list page.
 const levelMeta = {
@@ -361,7 +362,7 @@ watch(
             <div class="flex h-full min-w-0 items-center gap-1 overflow-x-auto">
                 <Link
                     v-for="item in navItems"
-                    :key="item.component"
+                    :key="item.label"
                     :href="item.href"
                     class="flex h-full shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition"
                     :class="
@@ -415,7 +416,7 @@ watch(
                 <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
                     <Link
                         v-for="item in navItems"
-                        :key="item.component"
+                        :key="item.label"
                         :href="item.href"
                         class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition"
                         :class="

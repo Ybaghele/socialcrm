@@ -97,6 +97,17 @@ return [
         'default_range' => (int) env('OMNIFLOW_ANALYTICS_DAYS', 30),
     ],
 
+    // Per-campaign Meta ads reporting. Campaigns without a published Meta id,
+    // or campaigns on the shared sandbox ad account, get deterministic sample
+    // rows so the reporting UI can be exercised without live spend.
+    'ads_analytics' => [
+        'ranges' => [7, 30, 90],
+        'default_range' => 30,
+        'sample_ad_account_ids' => ['act_230817132'],
+        'default_daily_budget' => 750.0,
+        'currency' => 'INR',
+    ],
+
     // Automation guardrails. The cooldown stops a broad auto-reply rule (one with
     // no keywords) turning a chatty customer into a reply storm; the batches keep
     // one scheduler tick bounded.

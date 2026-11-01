@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdAnalyticsController;
 use App\Http\Controllers\AdCampaignController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AutomationController;
@@ -104,7 +105,8 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         Route::post('/campaigns', [CampaignController::class, 'store'])->name('campaigns.store');
         Route::patch('/campaigns/{campaign}', [CampaignController::class, 'update'])->name('campaigns.update');
 
-        // Meta Ads Campaign Manager (Phase 1)
+        // Meta Ads Campaign Manager
+        Route::get('/ads/campaigns/{campaign}/analytics', [AdAnalyticsController::class, 'show'])->name('ads.campaigns.analytics');
         Route::post('/ads/campaigns/publish', [AdCampaignController::class, 'publish'])->name('ads.campaigns.publish');
         Route::resource('ads/campaigns', AdCampaignController::class)->names('ads.campaigns');
         Route::get('/ads/meta/connect', [MetaConnectionController::class, 'redirect'])->name('ads.meta.connect');
