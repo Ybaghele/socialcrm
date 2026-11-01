@@ -200,6 +200,7 @@ class MetaPublishingTest extends TestCase
                 && $data['campaign_id'] === 'camp_100'
                 && $data['daily_budget'] === 50000
                 && $targeting['age_min'] === 21
+                && $targeting['targeting_automation']['advantage_audience'] === 0
                 && in_array('facebook', $targeting['publisher_platforms'], true);
         });
 

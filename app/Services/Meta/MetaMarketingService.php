@@ -351,6 +351,10 @@ class MetaMarketingService
         $targeting = [
             'age_min' => $ageMin,
             'age_max' => $ageMax,
+            // Meta now requires an explicit Advantage audience decision.
+            'targeting_automation' => [
+                'advantage_audience' => 0,
+            ],
         ];
 
         $genders = array_values(array_filter(
