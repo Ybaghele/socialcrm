@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdCampaignController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AutomationController;
 use App\Http\Controllers\BillingController;
@@ -12,7 +13,9 @@ use App\Http\Controllers\ConversationMessageController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\MemberController;
+use App\Http\Controllers\MetaAdsBillingController;
 use App\Http\Controllers\MetaConnectController;
+use App\Http\Controllers\MetaConnectionController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SegmentController;
@@ -102,11 +105,12 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         Route::patch('/campaigns/{campaign}', [CampaignController::class, 'update'])->name('campaigns.update');
 
         // Meta Ads Campaign Manager (Phase 1)
-        Route::resource('ads/campaigns', \App\Http\Controllers\AdCampaignController::class)->names('ads.campaigns');
-        Route::get('/ads/meta/connect', [\App\Http\Controllers\MetaConnectionController::class, 'redirect'])->name('ads.meta.connect');
-        Route::get('/ads/meta/callback', [\App\Http\Controllers\MetaConnectionController::class, 'callback'])->name('ads.meta.callback');
-        Route::get('/ads/meta', [\App\Http\Controllers\MetaConnectionController::class, 'index'])->name('ads.meta.index');
-        Route::post('/ads/billing/check', \App\Http\Controllers\MetaAdsBillingController::class)->name('ads.billing.check');
+        Route::post('/ads/campaigns/publish', [AdCampaignController::class, 'publish'])->name('ads.campaigns.publish');
+        Route::resource('ads/campaigns', AdCampaignController::class)->names('ads.campaigns');
+        Route::get('/ads/meta/connect', [MetaConnectionController::class, 'redirect'])->name('ads.meta.connect');
+        Route::get('/ads/meta/callback', [MetaConnectionController::class, 'callback'])->name('ads.meta.callback');
+        Route::get('/ads/meta', [MetaConnectionController::class, 'index'])->name('ads.meta.index');
+        Route::post('/ads/billing/check', MetaAdsBillingController::class)->name('ads.billing.check');
 
         // Approved WhatsApp templates (mirrored from Meta) that broadcasts can use.
         Route::get('/templates', [TemplateController::class, 'index'])->name('templates.index');

@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\MetaPublishException;
+use App\Http\Requests\PublishAdCampaignRequest;
 use App\Http\Requests\StoreAdCampaignRequest;
 use App\Http\Requests\UpdateAdCampaignRequest;
 use App\Models\AdCampaign;
+use App\Services\Meta\MetaMarketingService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -13,6 +17,8 @@ use Inertia\Response;
 
 class AdCampaignController extends Controller
 {
+    public function __construct(private readonly MetaMarketingService $metaMarketing) {}
+
     /**
      * Display a listing of the resource.
      */
@@ -105,6 +111,53 @@ class AdCampaignController extends Controller
         $this->syncAdSetAndCreative($campaign, $validated);
 
         return back()->with('success', 'Ad campaign draft updated.');
+    }
+
+    /**
+     * Publish (or re-publish) the campaign to the Meta Marketing API.
+     *
+     * The wizard posts the whole form here so the draft is saved before any
+     * Graph call is made. A failure returns 422 with the friendly message and
+     * the raw Graph response, and the user stays on the review step.
+     */
+    public function publish(PublishAdCampaignRequest $request, string $workspace): JsonResponse
+    {
+        $validated = $request->validated();
+        $campaignId = $validated['campaign_id'] ?? null;
+
+        $campaign = $campaignId
+            ? AdCampaign::query()->findOrFail($campaignId)
+            : new AdCampaign(['workspace_id' => $request->attributes->get('workspace')?->id]);
+
+        $attributes = $this->campaignAttributes($validated);
+        unset($attributes['status']);
+
+        if (! $campaign->exists) {
+            $attributes['status'] = 'draft';
+        }
+
+        $campaign->fill($attributes)->save();
+        $this->syncAdSetAndCreative($campaign, $validated);
+
+        try {
+            $campaign = $this->metaMarketing->publish($campaign->fresh(['adSets.creatives']));
+        } catch (MetaPublishException $e) {
+            return response()->json([
+                ...$e->toArray(),
+                'campaign_id' => $campaign->id,
+            ], 422);
+        }
+
+        $adSet = $campaign->adSets->first();
+
+        return response()->json([
+            'ok' => true,
+            'campaign_id' => $campaign->id,
+            'status' => $campaign->status,
+            'platform_campaign_id' => $campaign->platform_campaign_id,
+            'platform_adset_id' => $adSet?->platform_adset_id,
+            'platform_ad_id' => $adSet?->creatives->first()?->platform_ad_id,
+        ]);
     }
 
     /**

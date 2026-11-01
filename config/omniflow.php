@@ -36,6 +36,19 @@ return [
             'whatsapp' => 'https://graph.facebook.com',
             'messenger' => 'https://graph.facebook.com',
             'instagram' => env('META_INSTAGRAM_HOST', 'https://graph.facebook.com'),
+            'marketing' => env('META_MARKETING_HOST', 'https://graph.facebook.com'),
+        ],
+
+        // Live publishing (Phase 3). Every object is created PAUSED, so these
+        // values only tune the payload, never whether money can be spent.
+        'ads' => [
+            // Facebook Page that owns the ad creative. Falls back to the page id
+            // saved on the Meta connection or a connected Messenger/IG account.
+            'page_id' => env('META_ADS_PAGE_ID'),
+            // Meta expects minor currency units; 100 = ₹1.00.
+            'default_bid_amount' => (int) env('META_DEFAULT_BID_AMOUNT', 100),
+            'default_country' => env('META_ADS_DEFAULT_COUNTRY', 'IN'),
+            'timeout' => (int) env('META_ADS_TIMEOUT', 30),
         ],
 
         // Self-service connect (WhatsApp Embedded Signup). Off until all three are

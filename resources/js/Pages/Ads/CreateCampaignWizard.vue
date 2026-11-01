@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { route } from '@ziggy';
 import OmniLayout from '@/Layouts/OmniLayout.vue';
@@ -21,6 +21,17 @@ const steps = [
 ];
 
 const campaignData = computed(() => props.campaign || page.props.campaign || null);
+
+// The id can arrive after the first save/publish redirect, or from a failed
+// publish response, so keep it in a ref the actions can rely on.
+const campaignId = ref(campaignData.value?.id ?? null);
+
+watch(
+    () => campaignData.value?.id,
+    (id) => {
+        if (id) campaignId.value = id;
+    },
+);
 
 /**
  * Format an ISO timestamp for an <input type="datetime-local">.
@@ -121,8 +132,8 @@ const updateAudienceJson = (value) => {
 };
 
 const saveDraft = () => {
-    if (campaignData.value?.id) {
-        form.patch(route('ads.campaigns.update', { workspace: workspaceSlug.value, campaign: campaignData.value.id }), {
+    if (campaignId.value) {
+        form.patch(route('ads.campaigns.update', { workspace: workspaceSlug.value, campaign: campaignId.value }), {
             preserveScroll: true,
         });
     } else {
@@ -140,18 +151,45 @@ const prevStep = () => {
     if (step.value > 1) step.value--;
 };
 
-const publish = () => {
-    form.status = 'processing';
-    if (campaignData.value?.id) {
-        form.patch(route('ads.campaigns.update', { workspace: workspaceSlug.value, campaign: campaignData.value.id }), {
-            preserveScroll: true,
-            onSuccess: () => router.visit(route('ads.campaigns.index', { workspace: workspaceSlug.value })),
-        });
-    } else {
-        form.post(route('ads.campaigns.store', { workspace: workspaceSlug.value }), {
-            preserveScroll: true,
-            onSuccess: () => router.visit(route('ads.campaigns.index', { workspace: workspaceSlug.value })),
-        });
+const publishing = ref(false);
+const publishError = ref(null);
+
+const publish = async () => {
+    publishError.value = null;
+    publishing.value = true;
+
+    try {
+        const response = await axios.post(
+            route('ads.campaigns.publish', { workspace: workspaceSlug.value }),
+            {
+                ...form.data(),
+                campaign_id: campaignId.value,
+            },
+        );
+
+        if (response.data?.campaign_id) {
+            campaignId.value = response.data.campaign_id;
+        }
+
+        router.visit(route('ads.campaigns.index', { workspace: workspaceSlug.value }));
+    } catch (error) {
+        const data = error.response?.data ?? {};
+
+        if (data.campaign_id) {
+            campaignId.value = data.campaign_id;
+        }
+
+        const validationMessage = data.errors ? Object.values(data.errors).flat()[0] : null;
+
+        publishError.value = {
+            title: data.title || (validationMessage ? 'Check the campaign details' : 'Meta rejected the campaign'),
+            message: validationMessage || data.message || 'Something went wrong while publishing to Meta. Please try again.',
+            raw: data.raw || error.message,
+            step: data.step || null,
+            code: data.code || null,
+        };
+    } finally {
+        publishing.value = false;
     }
 };
 </script>
@@ -323,8 +361,19 @@ const publish = () => {
                                     <div class="col-span-2"><span class="font-medium text-slate-700">Primary Text:</span> {{ form.primary_text }}</div>
                                     <div class="col-span-2"><span class="font-medium text-slate-700">Destination:</span> {{ form.destination_url }}</div>
                                 </div>
-                                <div v-if="!form.billing_info" class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-800">
-                                    Missing billing information. Add billing details before publishing.
+                                <div v-if="billingWarning" class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-800">
+                                    {{ billingWarning.warning }}
+                                </div>
+                                <div v-if="publishError" class="mt-3 rounded-lg border border-rose-300 bg-rose-50 p-3 text-[11px] text-rose-900">
+                                    <p class="font-semibold">{{ publishError.title }}</p>
+                                    <p class="mt-1">{{ publishError.message }}</p>
+                                    <p v-if="publishError.step" class="mt-1 text-rose-700">
+                                        Failed at: {{ publishError.step }}<span v-if="publishError.code"> (Meta code {{ publishError.code }})</span>
+                                    </p>
+                                    <details class="mt-2">
+                                        <summary class="cursor-pointer font-semibold text-rose-800">Show raw Meta response</summary>
+                                        <pre class="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-white p-2 font-mono text-[10px] text-slate-700">{{ publishError.raw }}</pre>
+                                    </details>
                                 </div>
                                 <div v-if="!canProceed" class="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-[11px] text-rose-800">
                                     Missing required parameters or empty creative fields.
@@ -338,7 +387,9 @@ const publish = () => {
                         <div class="flex items-center gap-2">
                             <button type="button" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100" @click="saveDraft">Save as Draft</button>
                             <button v-if="step < 5" type="button" class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-60" :disabled="!canProceed" @click="nextStep">Next</button>
-                            <button v-if="step === 5" type="button" class="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700" @click="publish">Publish</button>
+                            <button v-if="step === 5" type="button" class="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60" :disabled="publishing" @click="publish">
+                                {{ publishing ? 'Publishing…' : 'Publish' }}
+                            </button>
                         </div>
                     </div>
                 </div>
