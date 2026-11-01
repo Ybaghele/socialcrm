@@ -184,6 +184,7 @@ class MetaPublishingTest extends TestCase
             return $data['status'] === 'PAUSED'
                 && $data['objective'] === 'OUTCOME_SALES'
                 && $data['special_ad_categories'] === '[]'
+                && $data['is_adset_budget_sharing_enabled'] === false
                 && $request->hasHeader('Authorization', 'Bearer secret-token');
         });
 

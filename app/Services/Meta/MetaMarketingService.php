@@ -287,6 +287,8 @@ class MetaMarketingService
             'status' => self::STATUS_PAUSED,
             'buying_type' => 'AUCTION',
             'special_ad_categories' => json_encode($specialCategory !== '' ? [$specialCategory] : []),
+            // Meta requires this flag when the budget lives on the ad set.
+            'is_adset_budget_sharing_enabled' => false,
         ];
     }
 
