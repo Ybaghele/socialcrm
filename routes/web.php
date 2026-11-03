@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdAnalyticsController;
+use App\Http\Controllers\AdBillingController;
 use App\Http\Controllers\AdCampaignController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AutomationController;
@@ -14,7 +15,6 @@ use App\Http\Controllers\ConversationMessageController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\MemberController;
-use App\Http\Controllers\MetaAdsBillingController;
 use App\Http\Controllers\MetaConnectController;
 use App\Http\Controllers\MetaConnectionController;
 use App\Http\Controllers\NotificationController;
@@ -112,7 +112,7 @@ Route::middleware(['auth', 'verified', 'workspace'])->prefix('w/{workspace}')->g
         Route::get('/ads/meta/connect', [MetaConnectionController::class, 'redirect'])->name('ads.meta.connect');
         Route::get('/ads/meta/callback', [MetaConnectionController::class, 'callback'])->name('ads.meta.callback');
         Route::get('/ads/meta', [MetaConnectionController::class, 'index'])->name('ads.meta.index');
-        Route::post('/ads/billing/check', MetaAdsBillingController::class)->name('ads.billing.check');
+        Route::post('/ads/billing/check', AdBillingController::class)->name('ads.billing.check');
 
         // Approved WhatsApp templates (mirrored from Meta) that broadcasts can use.
         Route::get('/templates', [TemplateController::class, 'index'])->name('templates.index');

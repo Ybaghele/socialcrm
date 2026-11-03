@@ -3,18 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\AdCampaign;
-use App\Services\Ads\AdAnalyticsRepository;
+use App\Services\Ads\AdProviderFactory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Per-campaign ad reporting. The repository decides whether the campaign is a
- * sandbox campaign and therefore needs deterministic sample rows.
+ * Per-campaign ad reporting. The provider factory decides which adapter builds
+ * the report: Meta returns sample/live rows, while the Google and LinkedIn
+ * shells return an explicit coming-soon placeholder.
  */
 class AdAnalyticsController extends Controller
 {
-    public function __construct(private readonly AdAnalyticsRepository $analytics) {}
+    public function __construct(private readonly AdProviderFactory $providers) {}
 
     public function show(Request $request, string $workspace, AdCampaign $campaign): Response
     {
@@ -37,7 +38,7 @@ class AdAnalyticsController extends Controller
             ],
             'range' => $days,
             'ranges' => $ranges,
-            'report' => $this->analytics->forCampaign($campaign, $days),
+            'report' => $this->providers->forCampaign($campaign)->fetchAnalytics($campaign, $days),
         ]);
     }
 }

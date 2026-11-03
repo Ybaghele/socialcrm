@@ -73,12 +73,41 @@ const form = useForm({
 
 const billingWarning = ref(null);
 const billingChecking = ref(false);
+const comingSoonPlatform = ref(null);
+
+const platformLabels = {
+    meta: 'Meta',
+    google: 'Google Ads',
+    linkedin: 'LinkedIn Ads',
+};
+
+const comingSoonLabel = computed(() => platformLabels[comingSoonPlatform.value] || 'This platform');
+
+const selectPlatform = (platform) => {
+    form.platform = platform;
+    billingWarning.value = null;
+
+    if (platform !== 'meta') {
+        comingSoonPlatform.value = platform;
+    }
+};
+
+const closeComingSoon = () => {
+    comingSoonPlatform.value = null;
+};
+
+const continueWithMeta = () => {
+    form.platform = 'meta';
+    billingWarning.value = null;
+    comingSoonPlatform.value = null;
+};
 
 const checkBilling = async () => {
     if (!form.ad_account_id) return;
     billingChecking.value = true;
     try {
         const res = await axios.post(route('ads.billing.check', { workspace: workspaceSlug.value }), {
+            platform: form.platform,
             ad_account_id: form.ad_account_id.replace(/^act_/, ''),
         });
         if (res.data && res.data.billing_ready === false) {
@@ -113,7 +142,7 @@ const ctas = ['LEARN_MORE', 'SHOP_NOW', 'SIGN_UP', 'CONTACT_US', 'GET_QUOTE', 'B
 const errors = computed(() => form.errors);
 
 const canProceed = computed(() => {
-    if (step.value === 1) return ['meta'].includes(form.platform);
+    if (step.value === 1) return form.platform === 'meta';
     if (step.value === 2) return form.name && form.objective && form.budget_type && form.budget_amount;
     if (step.value === 3) return form.optimization_goal;
     if (step.value === 4) return form.primary_text && form.destination_url && form.media_url;
@@ -182,8 +211,8 @@ const publish = async () => {
         const validationMessage = data.errors ? Object.values(data.errors).flat()[0] : null;
 
         publishError.value = {
-            title: data.title || (validationMessage ? 'Check the campaign details' : 'Meta rejected the campaign'),
-            message: validationMessage || data.message || 'Something went wrong while publishing to Meta. Please try again.',
+            title: data.title || (validationMessage ? 'Check the campaign details' : 'Publishing failed'),
+            message: validationMessage || data.message || 'Something went wrong while publishing this campaign. Please try again.',
             raw: data.raw || error.message,
             step: data.step || null,
             code: data.code || null,
@@ -221,33 +250,59 @@ const publish = async () => {
                             <div>
                                 <label class="mb-1 block text-xs font-semibold text-slate-700">Select Platform</label>
                                 <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                                    <button type="button" class="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs" :class="form.platform === 'meta' ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600'" @click="form.platform = 'meta'">
+                                    <button type="button" class="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition" :class="form.platform === 'meta' ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'" @click="selectPlatform('meta')">
                                         <i class="fa-brands fa-meta"></i> Meta
+                                        <span class="ml-auto rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-700">Available</span>
                                     </button>
-                                    <button type="button" class="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs" :class="form.platform === 'google' ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600'" @click="form.platform = 'google'">
-                                        <i class="fa-brands fa-google"></i> Google <span class="text-[10px] text-slate-400">(Future)</span>
-                                    </button>
-                                    <button type="button" class="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs" :class="form.platform === 'linkedin' ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600'" @click="form.platform = 'linkedin'">
-                                        <i class="fa-brands fa-linkedin"></i> LinkedIn <span class="text-[10px] text-slate-400">(Future)</span>
-                                    </button>
+                                    <div class="group relative">
+                                        <button type="button" class="flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-xs transition" :class="form.platform === 'google' ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'" @click="selectPlatform('google')">
+                                            <i class="fa-brands fa-google"></i> Google
+                                            <span class="ml-auto rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-800">Coming soon</span>
+                                        </button>
+                                        <span class="pointer-events-none absolute left-0 top-full z-20 mt-1 hidden w-56 rounded-lg bg-slate-900 px-3 py-2 text-[10px] leading-relaxed text-white shadow-lg group-hover:block">
+                                            Platform connection coming soon in the next release phase
+                                        </span>
+                                    </div>
+                                    <div class="group relative">
+                                        <button type="button" class="flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-xs transition" :class="form.platform === 'linkedin' ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'" @click="selectPlatform('linkedin')">
+                                            <i class="fa-brands fa-linkedin"></i> LinkedIn
+                                            <span class="ml-auto rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-800">Coming soon</span>
+                                        </button>
+                                        <span class="pointer-events-none absolute left-0 top-full z-20 mt-1 hidden w-56 rounded-lg bg-slate-900 px-3 py-2 text-[10px] leading-relaxed text-white shadow-lg group-hover:block">
+                                            Platform connection coming soon in the next release phase
+                                        </span>
+                                    </div>
                                 </div>
                                 <p v-if="errors.platform" class="mt-1 text-[11px] text-rose-600">{{ errors.platform }}</p>
                             </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-semibold text-slate-700">Ad Account ID (Meta)</label>
-                                <div class="flex gap-2">
-                                    <input v-model="form.ad_account_id" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" placeholder="act_1234567890" @blur="checkBilling" />
-                                    <button type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50" :disabled="billingChecking" @click="checkBilling">
-                                        {{ billingChecking ? 'Checking...' : 'Check Billing' }}
-                                    </button>
+
+                            <div v-if="form.platform !== 'meta'" class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                                <div class="flex items-start gap-2">
+                                    <i class="fa-solid fa-clock mt-0.5"></i>
+                                    <div>
+                                        <p class="font-semibold">{{ platformLabels[form.platform] }} is not connected yet</p>
+                                        <p class="mt-1">Platform connection coming soon in the next release phase. Select Meta to continue building and publishing this campaign.</p>
+                                    </div>
                                 </div>
                             </div>
-                            <div v-if="billingWarning" class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-                                <div class="flex items-start gap-2">
-                                    <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
-                                    <div class="flex-1">
-                                        <p class="font-semibold">{{ billingWarning.warning }}</p>
-                                        <a :href="billingWarning.cta" target="_blank" rel="noopener" class="mt-1 inline-block text-xs font-semibold text-amber-900 underline">Go to Meta Billing Settings</a>
+
+                            <div v-if="form.platform === 'meta'" class="space-y-4">
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold text-slate-700">Ad Account ID (Meta)</label>
+                                    <div class="flex gap-2">
+                                        <input v-model="form.ad_account_id" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" placeholder="act_1234567890" @blur="checkBilling" />
+                                        <button type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50" :disabled="billingChecking" @click="checkBilling">
+                                            {{ billingChecking ? 'Checking...' : 'Check Billing' }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div v-if="billingWarning" class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                                    <div class="flex items-start gap-2">
+                                        <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                                        <div class="flex-1">
+                                            <p class="font-semibold">{{ billingWarning.warning }}</p>
+                                            <a :href="billingWarning.cta" target="_blank" rel="noopener" class="mt-1 inline-block text-xs font-semibold text-amber-900 underline">Go to Meta Billing Settings</a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -354,7 +409,7 @@ const publish = async () => {
                             <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
                                 <p class="mb-2 text-xs font-semibold text-slate-700">Review Summary</p>
                                 <div class="grid grid-cols-2 gap-2 text-xs text-slate-600">
-                                    <div><span class="font-medium text-slate-700">Platform:</span> {{ form.platform }}</div>
+                                    <div><span class="font-medium text-slate-700">Platform:</span> {{ platformLabels[form.platform] || form.platform }}</div>
                                     <div><span class="font-medium text-slate-700">Campaign:</span> {{ form.name }}</div>
                                     <div><span class="font-medium text-slate-700">Objective:</span> {{ form.objective }}</div>
                                     <div><span class="font-medium text-slate-700">Budget:</span> {{ form.budget_type }} ₹{{ form.budget_amount }}</div>
@@ -368,10 +423,10 @@ const publish = async () => {
                                     <p class="font-semibold">{{ publishError.title }}</p>
                                     <p class="mt-1">{{ publishError.message }}</p>
                                     <p v-if="publishError.step" class="mt-1 text-rose-700">
-                                        Failed at: {{ publishError.step }}<span v-if="publishError.code"> (Meta code {{ publishError.code }})</span>
+                                        Failed at: {{ publishError.step }}<span v-if="publishError.code"> (code {{ publishError.code }})</span>
                                     </p>
                                     <details class="mt-2">
-                                        <summary class="cursor-pointer font-semibold text-rose-800">Show raw Meta response</summary>
+                                        <summary class="cursor-pointer font-semibold text-rose-800">Show raw provider response</summary>
                                         <pre class="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-white p-2 font-mono text-[10px] text-slate-700">{{ publishError.raw }}</pre>
                                     </details>
                                 </div>
@@ -392,6 +447,24 @@ const publish = async () => {
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="comingSoonPlatform" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" @click.self="closeComingSoon">
+            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-sm font-bold text-slate-900">{{ comingSoonLabel }} is coming soon</h3>
+                        <p class="mt-2 text-xs leading-relaxed text-slate-600">Platform connection coming soon in the next release phase.</p>
+                    </div>
+                </div>
+                <div class="mt-5 flex justify-end gap-2">
+                    <button type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50" @click="closeComingSoon">Got it</button>
+                    <button type="button" class="rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700" @click="continueWithMeta">Continue with Meta</button>
                 </div>
             </div>
         </div>

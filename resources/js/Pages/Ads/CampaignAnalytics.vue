@@ -84,6 +84,9 @@ function changeRange(event) {
                             <span v-if="report.is_mock" class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">
                                 Sample data
                             </span>
+                            <span v-if="report.source === 'placeholder'" class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600">
+                                Coming soon
+                            </span>
                         </div>
                     </div>
 
@@ -121,7 +124,9 @@ function changeRange(event) {
                     <div class="flex items-start gap-2">
                         <i class="fa-solid fa-circle-info mt-0.5 text-slate-400"></i>
                         <div>
-                            <p class="font-semibold text-slate-800">Live insights are not connected yet</p>
+                            <p class="font-semibold text-slate-800">
+                                {{ report.source === 'placeholder' ? 'Platform connection coming soon' : 'Live insights are not connected yet' }}
+                            </p>
                             <p class="mt-1">{{ report.message }}</p>
                         </div>
                     </div>

@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\MetaPublishException;
+use App\Exceptions\PlatformIntegrationComingSoon;
 use App\Http\Requests\PublishAdCampaignRequest;
 use App\Http\Requests\StoreAdCampaignRequest;
 use App\Http\Requests\UpdateAdCampaignRequest;
 use App\Models\AdCampaign;
-use App\Services\Meta\MetaMarketingService;
+use App\Services\Ads\AdProviderFactory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ use Inertia\Response;
 
 class AdCampaignController extends Controller
 {
-    public function __construct(private readonly MetaMarketingService $metaMarketing) {}
+    public function __construct(private readonly AdProviderFactory $providers) {}
 
     /**
      * Display a listing of the resource.
@@ -114,11 +115,13 @@ class AdCampaignController extends Controller
     }
 
     /**
-     * Publish (or re-publish) the campaign to the Meta Marketing API.
+     * Publish (or re-publish) the campaign through its platform adapter.
      *
      * The wizard posts the whole form here so the draft is saved before any
-     * Graph call is made. A failure returns 422 with the friendly message and
-     * the raw Graph response, and the user stays on the review step.
+     * provider call is made. A failure returns 422 with the friendly message
+     * and the raw provider response, and the user stays on the review step.
+     * Google and LinkedIn shells save the draft, then return the coming-soon
+     * payload until their APIs are connected.
      */
     public function publish(PublishAdCampaignRequest $request, string $workspace): JsonResponse
     {
@@ -140,7 +143,13 @@ class AdCampaignController extends Controller
         $this->syncAdSetAndCreative($campaign, $validated);
 
         try {
-            $campaign = $this->metaMarketing->publish($campaign->fresh(['adSets.creatives']));
+            $provider = $this->providers->forCampaign($campaign);
+            $campaign = $provider->publishCampaign($campaign->fresh(['adSets.creatives']));
+        } catch (PlatformIntegrationComingSoon $e) {
+            return response()->json([
+                ...$e->toArray(),
+                'campaign_id' => $campaign->id,
+            ], 422);
         } catch (MetaPublishException $e) {
             return response()->json([
                 ...$e->toArray(),

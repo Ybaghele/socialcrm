@@ -11,7 +11,7 @@ use App\Models\PublishLog;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Models\Workspace;
-use App\Services\Meta\MetaMarketingService;
+use App\Services\Ads\Providers\MetaProvider;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -157,7 +157,7 @@ class MetaPublishingTest extends TestCase
 
         $published = Tenancy::run(
             $this->workspace,
-            fn (): AdCampaign => app(MetaMarketingService::class)->publish($this->campaign),
+            fn (): AdCampaign => app(MetaProvider::class)->publishCampaign($this->campaign),
         );
 
         $this->assertSame('camp_100', $published->platform_campaign_id);
@@ -236,6 +236,27 @@ class MetaPublishingTest extends TestCase
         $this->assertStringContainsString('campaign_id=camp_100', (string) $log->trace);
     }
 
+    public function test_granular_meta_publishing_creates_the_ad_set_and_creative_directly(): void
+    {
+        $this->fakeSuccessfulPublish();
+
+        $campaign = $this->makeCampaign(['platform_campaign_id' => 'camp_100']);
+        $adSet = $campaign->adSets()->firstOrFail();
+        $creative = $adSet->creatives()->firstOrFail();
+        $provider = app(MetaProvider::class);
+
+        Tenancy::run($this->workspace, function () use ($provider, $campaign, $adSet, $creative): void {
+            $provider->publishAdSet($campaign, $adSet);
+            $provider->publishCreative($campaign, $adSet, $creative);
+        });
+
+        $this->assertSame('adset_100', $adSet->refresh()->platform_adset_id);
+        $this->assertSame('paused', $adSet->status);
+        $this->assertSame('creative_100', $creative->refresh()->platform_creative_id);
+        $this->assertSame('ad_100', $creative->platform_ad_id);
+        $this->assertSame('paused', $creative->status);
+    }
+
     public function test_an_expired_token_is_mapped_to_a_friendly_message_and_logged(): void
     {
         Http::fake([
@@ -251,7 +272,7 @@ class MetaPublishingTest extends TestCase
         ]);
 
         try {
-            Tenancy::run($this->workspace, fn () => app(MetaMarketingService::class)->publish($this->campaign));
+            Tenancy::run($this->workspace, fn () => app(MetaProvider::class)->publishCampaign($this->campaign));
             $this->fail('Expected a MetaPublishException.');
         } catch (MetaPublishException $e) {
             $this->assertSame('campaign', $e->step);
@@ -287,7 +308,7 @@ class MetaPublishingTest extends TestCase
         $this->expectException(MetaPublishException::class);
 
         try {
-            Tenancy::run($this->workspace, fn () => app(MetaMarketingService::class)->publish($this->campaign));
+            Tenancy::run($this->workspace, fn () => app(MetaProvider::class)->publishCampaign($this->campaign));
         } catch (MetaPublishException $e) {
             $this->assertStringContainsString('rate-limit', strtolower($e->userTitle));
             $this->assertStringContainsString('wait', strtolower($e->userMessage));
@@ -305,7 +326,7 @@ class MetaPublishingTest extends TestCase
         ]);
 
         try {
-            Tenancy::run($this->workspace, fn () => app(MetaMarketingService::class)->publish($this->campaign));
+            Tenancy::run($this->workspace, fn () => app(MetaProvider::class)->publishCampaign($this->campaign));
             $this->fail('Expected a MetaPublishException.');
         } catch (MetaPublishException $e) {
             $this->assertStringContainsString('payment', strtolower($e->userTitle));
@@ -389,7 +410,7 @@ class MetaPublishingTest extends TestCase
         ]);
 
         try {
-            Tenancy::run($this->workspace, fn () => app(MetaMarketingService::class)->publish($this->campaign));
+            Tenancy::run($this->workspace, fn () => app(MetaProvider::class)->publishCampaign($this->campaign));
             $this->fail('Expected a MetaPublishException.');
         } catch (MetaPublishException $e) {
             $this->assertSame('ad_set', $e->step);
@@ -418,7 +439,7 @@ class MetaPublishingTest extends TestCase
 
         $this->fakeSuccessfulPublish();
 
-        Tenancy::run($this->workspace, fn () => app(MetaMarketingService::class)->publish($this->campaign));
+        Tenancy::run($this->workspace, fn () => app(MetaProvider::class)->publishCampaign($this->campaign));
 
         Http::assertSent(function (Request $request): bool {
             if (! str_ends_with($request->url(), '/act_1234567890/adcreatives')) {
@@ -436,7 +457,7 @@ class MetaPublishingTest extends TestCase
         Tenancy::run($this->workspace, fn () => $this->connection->delete());
 
         try {
-            Tenancy::run($this->workspace, fn () => app(MetaMarketingService::class)->publish($this->campaign));
+            Tenancy::run($this->workspace, fn () => app(MetaProvider::class)->publishCampaign($this->campaign));
             $this->fail('Expected a MetaPublishException.');
         } catch (MetaPublishException $e) {
             $this->assertSame('connection', $e->step);
