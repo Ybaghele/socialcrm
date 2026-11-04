@@ -32,6 +32,7 @@ class UpdateAdCampaignRequest extends FormRequest
             'budget_type' => ['nullable', Rule::in(['daily', 'lifetime'])],
             'budget_amount' => ['nullable', 'numeric', 'min:0'],
             'status' => ['nullable', Rule::in(['draft', 'processing', 'active', 'paused', 'archived', 'failed'])],
+            'current_step' => ['nullable', 'integer', 'min:1', 'max:5'],
             'audience_json' => ['nullable', 'array'],
             'placements_json' => ['nullable', 'array'],
             'optimization_goal' => ['nullable', 'string', 'max:255'],

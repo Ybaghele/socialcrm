@@ -141,7 +141,48 @@ class AdCampaignTest extends TestCase
                 ->where('campaign.ad_sets.0.audience_json.age_min', 21)
                 ->where('campaign.ad_sets.0.creatives.0.primary_text', 'Saved copy')
                 ->where('campaign.ad_sets.0.creatives.0.headline', 'Saved headline')
+                ->where('campaign.current_step', 1)
             );
+    }
+
+    public function test_saving_a_draft_persists_the_current_wizard_step(): void
+    {
+        $this->actingAs($this->member)
+            ->post('/w/acme/ads/campaigns', $this->wizardPayload(['current_step' => 3]))
+            ->assertRedirect();
+
+        $campaign = Tenancy::run($this->workspace, fn () => AdCampaign::firstWhere('name', 'Diwali Sale'));
+
+        $this->assertNotNull($campaign);
+        $this->assertSame(3, $campaign->current_step);
+
+        $this->actingAs($this->member)
+            ->get("/w/acme/ads/campaigns/{$campaign->id}/edit")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Ads/CreateCampaignWizard')
+                ->where('campaign.current_step', 3)
+            );
+    }
+
+    public function test_updating_a_draft_persists_the_current_wizard_step(): void
+    {
+        $campaign = $this->makeCampaign();
+
+        $this->actingAs($this->member)
+            ->patch("/w/acme/ads/campaigns/{$campaign->id}", $this->wizardPayload(['current_step' => 4]))
+            ->assertRedirect();
+
+        $this->assertSame(4, $campaign->fresh()->current_step);
+    }
+
+    public function test_the_current_step_must_be_within_the_wizard_range(): void
+    {
+        $this->actingAs($this->member)
+            ->post('/w/acme/ads/campaigns', $this->wizardPayload(['current_step' => 6]))
+            ->assertSessionHasErrors('current_step');
+
+        $this->assertSame(0, Tenancy::run($this->workspace, fn () => AdCampaign::count()));
     }
 
     public function test_saving_a_draft_again_updates_the_campaign_instead_of_creating_a_duplicate(): void

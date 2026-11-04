@@ -196,6 +196,7 @@ class AdCampaignController extends Controller
             'budget_type',
             'budget_amount',
             'status',
+            'current_step',
         ]);
     }
 

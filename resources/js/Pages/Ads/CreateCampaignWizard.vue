@@ -11,7 +11,6 @@ const props = defineProps({
 const page = usePage();
 const workspaceSlug = computed(() => page.props.workspace?.slug);
 
-const step = ref(1);
 const steps = [
     { id: 1, name: 'Platform' },
     { id: 2, name: 'Campaign Setup' },
@@ -19,8 +18,15 @@ const steps = [
     { id: 4, name: 'Ad Creative Setup' },
     { id: 5, name: 'Review & Publish' },
 ];
+const totalSteps = steps.length;
 
 const campaignData = computed(() => props.campaign || page.props.campaign || null);
+
+// Resume at the step saved with the draft. Clamp the value so a stale or
+// malformed row can never land the operator on a missing step.
+const initialStep = Math.min(totalSteps, Math.max(1, Number(campaignData.value?.current_step) || 1));
+const currentStep = ref(initialStep);
+const maxReachedStep = ref(initialStep);
 
 // The id can arrive after the first save/publish redirect, or from a failed
 // publish response, so keep it in a ref the actions can rely on.
@@ -69,6 +75,7 @@ const form = useForm({
     cta: campaignData.value?.ad_sets?.[0]?.creatives?.[0]?.cta || 'LEARN_MORE',
     destination_url: campaignData.value?.ad_sets?.[0]?.creatives?.[0]?.destination_url || '',
     status: campaignData.value?.status || 'draft',
+    current_step: initialStep,
 });
 
 const billingWarning = ref(null);
@@ -142,10 +149,10 @@ const ctas = ['LEARN_MORE', 'SHOP_NOW', 'SIGN_UP', 'CONTACT_US', 'GET_QUOTE', 'B
 const errors = computed(() => form.errors);
 
 const canProceed = computed(() => {
-    if (step.value === 1) return form.platform === 'meta';
-    if (step.value === 2) return form.name && form.objective && form.budget_type && form.budget_amount;
-    if (step.value === 3) return form.optimization_goal;
-    if (step.value === 4) return form.primary_text && form.destination_url && form.media_url;
+    if (currentStep.value === 1) return form.platform === 'meta';
+    if (currentStep.value === 2) return form.name && form.objective && form.budget_type && form.budget_amount;
+    if (currentStep.value === 3) return form.optimization_goal;
+    if (currentStep.value === 4) return form.primary_text && form.destination_url && form.media_url;
     return true;
 });
 
@@ -161,6 +168,9 @@ const updateAudienceJson = (value) => {
 };
 
 const saveDraft = () => {
+    form.current_step = currentStep.value;
+    maxReachedStep.value = Math.max(maxReachedStep.value, currentStep.value);
+
     if (campaignId.value) {
         form.patch(route('ads.campaigns.update', { workspace: workspaceSlug.value, campaign: campaignId.value }), {
             preserveScroll: true,
@@ -173,11 +183,20 @@ const saveDraft = () => {
 };
 
 const nextStep = () => {
-    if (canProceed.value && step.value < 5) step.value++;
+    if (canProceed.value && currentStep.value < totalSteps) {
+        currentStep.value++;
+        maxReachedStep.value = Math.max(maxReachedStep.value, currentStep.value);
+    }
 };
 
 const prevStep = () => {
-    if (step.value > 1) step.value--;
+    if (currentStep.value > 1) currentStep.value--;
+};
+
+const goToStep = (target) => {
+    if (target >= 1 && target <= maxReachedStep.value) {
+        currentStep.value = target;
+    }
 };
 
 const publishing = ref(false);
@@ -192,6 +211,7 @@ const publish = async () => {
             route('ads.campaigns.publish', { workspace: workspaceSlug.value }),
             {
                 ...form.data(),
+                current_step: totalSteps,
                 campaign_id: campaignId.value,
             },
         );
@@ -237,16 +257,25 @@ const publish = async () => {
 
                 <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
                     <div class="flex items-center gap-2 border-b border-slate-100 px-6 py-4">
-                        <div v-for="s in steps" :key="s.id" class="flex items-center gap-2">
-                            <div class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold" :class="step >= s.id ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-400'">{{ s.id }}</div>
-                            <span class="text-xs font-medium" :class="step >= s.id ? 'text-slate-900' : 'text-slate-400'">{{ s.name }}</span>
-                            <i v-if="s.id < 5" class="fa-solid fa-chevron-right text-[10px] text-slate-300"></i>
-                        </div>
+                        <button
+                            v-for="s in steps"
+                            :key="s.id"
+                            type="button"
+                            class="flex items-center gap-2 rounded-lg px-1 py-1 transition"
+                            :class="s.id <= maxReachedStep ? 'cursor-pointer hover:bg-slate-50' : 'cursor-not-allowed opacity-60'"
+                            :disabled="s.id > maxReachedStep"
+                            :aria-current="currentStep === s.id ? 'step' : undefined"
+                            @click="goToStep(s.id)"
+                        >
+                            <div class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold" :class="currentStep >= s.id ? 'bg-brand-600 text-white' : (s.id <= maxReachedStep ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-400')">{{ s.id }}</div>
+                            <span class="text-xs font-medium" :class="currentStep >= s.id ? 'text-slate-900' : (s.id <= maxReachedStep ? 'text-slate-600' : 'text-slate-400')">{{ s.name }}</span>
+                            <i v-if="s.id < totalSteps" class="fa-solid fa-chevron-right text-[10px] text-slate-300"></i>
+                        </button>
                     </div>
 
                     <div class="space-y-4 px-6 py-5">
                         <!-- Step 1 -->
-                        <div v-if="step === 1" class="space-y-4">
+                        <div v-if="currentStep === 1" class="space-y-4">
                             <div>
                                 <label class="mb-1 block text-xs font-semibold text-slate-700">Select Platform</label>
                                 <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -309,7 +338,7 @@ const publish = async () => {
                         </div>
 
                         <!-- Step 2 -->
-                        <div v-if="step === 2" class="space-y-4">
+                        <div v-if="currentStep === 2" class="space-y-4">
                             <div>
                                 <label class="mb-1 block text-xs font-semibold text-slate-700">Campaign Name</label>
                                 <input v-model="form.name" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" placeholder="Summer Sale Campaign" />
@@ -344,7 +373,7 @@ const publish = async () => {
                         </div>
 
                         <!-- Step 3 -->
-                        <div v-if="step === 3" class="space-y-4">
+                        <div v-if="currentStep === 3" class="space-y-4">
                             <div class="rounded-lg border border-slate-200 p-3">
                                 <p class="mb-2 text-xs font-semibold text-slate-700">Audience (JSON builder)</p>
                                 <textarea :value="JSON.stringify(form.audience_json, null, 2)" rows="4" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-mono" @input="updateAudienceJson($event.target.value)"></textarea>
@@ -371,7 +400,7 @@ const publish = async () => {
                         </div>
 
                         <!-- Step 4 -->
-                        <div v-if="step === 4" class="space-y-4">
+                        <div v-if="currentStep === 4" class="space-y-4">
                             <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
                                 <p class="mb-2 text-xs font-semibold text-slate-700">Media Preview Box</p>
                                 <div class="flex h-40 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-xs text-slate-400">
@@ -405,7 +434,7 @@ const publish = async () => {
                         </div>
 
                         <!-- Step 5 -->
-                        <div v-if="step === 5" class="space-y-4">
+                        <div v-if="currentStep === 5" class="space-y-4">
                             <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
                                 <p class="mb-2 text-xs font-semibold text-slate-700">Review Summary</p>
                                 <div class="grid grid-cols-2 gap-2 text-xs text-slate-600">
@@ -438,11 +467,11 @@ const publish = async () => {
                     </div>
 
                     <div class="flex items-center justify-between border-t border-slate-100 px-6 py-3">
-                        <button type="button" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100" :disabled="step === 1" @click="prevStep">Back</button>
+                        <button type="button" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100" :disabled="currentStep === 1" @click="prevStep">Back</button>
                         <div class="flex items-center gap-2">
                             <button type="button" class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100" @click="saveDraft">Save as Draft</button>
-                            <button v-if="step < 5" type="button" class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-60" :disabled="!canProceed" @click="nextStep">Next</button>
-                            <button v-if="step === 5" type="button" class="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60" :disabled="publishing" @click="publish">
+                            <button v-if="currentStep < totalSteps" type="button" class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-60" :disabled="!canProceed" @click="nextStep">Next</button>
+                            <button v-if="currentStep === 5" type="button" class="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60" :disabled="publishing" @click="publish">
                                 {{ publishing ? 'Publishing…' : 'Publish' }}
                             </button>
                         </div>
